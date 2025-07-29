@@ -9,7 +9,7 @@
 		<Optimize>true</Optimize>
 		<DebugType>none</DebugType>
 		<ErrorReport>prompt</ErrorReport>
-		<OutputPath>..\..\1.5\Assemblies\</OutputPath>
+		<OutputPath>..\..\1.6\Assemblies\</OutputPath>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<PublicizeAsReferenceAssemblies>false</PublicizeAsReferenceAssemblies>
 		<WarningLevel>5</WarningLevel>

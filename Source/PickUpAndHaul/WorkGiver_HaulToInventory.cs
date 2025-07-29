@@ -32,7 +32,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 	{
 		var list = pawn.Map.listerHaulables.ThingsPotentiallyNeedingHauling();
 		Comparer.rootCell = pawn.Position;
-		list.Sort(Comparer);
+		list.ToList().Sort(Comparer);
 		return list;
 	}
 
@@ -68,7 +68,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 			|| !IsNotCorpseOrAllowed(thing) //This WorkGiver gets hijacked by AllowTool and expects us to urgently haul corpses.
 			|| MassUtility.WillBeOverEncumberedAfterPickingUp(pawn, thing, 1)) //https://github.com/Mehni/PickUpAndHaul/pull/18
 		{
-			return HaulAIUtility.HaulToStorageJob(pawn, thing);
+			return HaulAIUtility.HaulToStorageJob(pawn, thing, false);
 		}
 
 		var map = pawn.Map;
@@ -84,7 +84,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 				//Don't multi-haul food to hoppers.
 				if (HaulToHopperJob(thing, targetCell, map))
 				{
-					return HaulAIUtility.HaulToStorageJob(pawn, thing);
+					return HaulAIUtility.HaulToStorageJob(pawn, thing, false);
 				}
 				else
 				{
@@ -114,7 +114,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
 		if (capacityStoreCell == 0)
 		{
-			return HaulAIUtility.HaulToStorageJob(pawn, thing);
+			return HaulAIUtility.HaulToStorageJob(pawn, thing, false);
 		}
 
 		var job = JobMaker.MakeJob(PickUpAndHaulJobDefOf.HaulToInventory, null, storeTarget);   //Things will be in queues
