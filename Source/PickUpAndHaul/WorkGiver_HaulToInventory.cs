@@ -191,6 +191,10 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 					//can't CountToPickUpUntilOverEncumbered here, pawn doesn't actually hold these things yet
 					nextThingLeftOverCount = CountPastCapacity(pawn, nextThing, encumberance);
 					Log.Message($"{pawn} Inventory allocated, will carry {nextThing}:{nextThingLeftOverCount}");
+					job.countQueue.Pop();
+					job.countQueue.Add(nextThingLeftOverCount);
+
+					// We are now out of inventory space - and should bail right away.
 					break;
 				}
 			}
@@ -198,51 +202,8 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 		while ((nextThing = GetClosestAndRemove(lastThing.Position, map, haulables, PathEndMode.ClosestTouch,
 			       traverseParms, distanceToSearchMore, Validator)) != null);
 
-		if (nextThing == null)
-		{
-			skipCells = null;
-			skipThings = null;
-				//skipTargets = null;
-			return job;
-		}
-
-		//Find what can be carried
-		//this doesn't actually get pickupandhauled, but will hold the reservation so others don't grab what this pawn can carry
-		haulables.RemoveAll(t => !t.CanStackWith(nextThing));
-
-		var carryCapacity = pawn.carryTracker.MaxStackSpaceEver(nextThing.def) - nextThingLeftOverCount;
-		if (carryCapacity == 0)
-		{
-			Log.Message($"{pawn} Can't carry more, nevermind!");
-			skipCells = null;
-			skipThings = null;
-			//skipTargets = null;
-			return job;
-		}
-		Log.Message($"{pawn} Looking for more like {nextThing}");
-
-		while ((nextThing = GetClosestAndRemove(nextThing.Position, map, haulables,
-			   PathEndMode.ClosestTouch, TraverseParms.For(pawn), 8f, Validator)) != null)
-		{
-			carryCapacity -= nextThing.stackCount;
-
-			if (AllocateThingAtCell(storeCellCapacity, pawn, nextThing, job))
-			{
-				break;
-			}
-
-			if (carryCapacity <= 0)
-			{
-				var lastCount = job.countQueue.Pop() + carryCapacity;
-				job.countQueue.Add(lastCount);
-				Log.Message($"{pawn} Nevermind, last count is {lastCount}");
-				break;
-			}
-		}
-
 		skipCells = null;
 		skipThings = null;
-		//skipTargets = null;
 		return job;
 	}
 
