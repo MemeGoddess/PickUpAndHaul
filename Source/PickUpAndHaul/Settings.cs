@@ -6,12 +6,14 @@ public class Settings : ModSettings
 	private static bool _allowAnimals = true;
 	private static bool _allowMechanoids = true;
 	private static bool _alwaysAllowPickup = true;
+	private static bool _stashInsteadOfDropOnNewJob = true;
 	private static float _maximumOccupiedCapacityToConsiderHauling = 0.8f;
 
 	public static bool AllowCorpses => _allowCorpses;
 	public static bool AllowAnimals => _allowAnimals;
 	public static bool AllowMechanoids => _allowMechanoids;
 	public static bool AlwaysAllowPickup => _alwaysAllowPickup;
+	public static bool StashInsteadOfDropOnNewJob => _stashInsteadOfDropOnNewJob;
 	public static float MaximumOccupiedCapacityToConsiderHauling => _maximumOccupiedCapacityToConsiderHauling;
 
 	public static bool IsAllowedRace(RaceProperties props) => props.Humanlike || (AllowAnimals && props.Animal) || (AllowMechanoids && props.IsMechanoid);
@@ -24,6 +26,7 @@ public class Settings : ModSettings
 		ls.CheckboxLabeled("PUAH.allowAnimals".Translate(), ref _allowAnimals, "PUAH.allowAnimalsTooltip".Translate());
 		ls.CheckboxLabeled("PUAH.allowMechanoids".Translate(), ref _allowMechanoids, "PUAH.allowMechanoidsTooltip".Translate());
 		ls.CheckboxLabeled("PUAH.alwaysAllowPickup".Translate(), ref _alwaysAllowPickup, "PUAH.alwaysAllowPickupTooltip".Translate());
+		ls.CheckboxLabeled("PUAH.stashInsteadOfDropOnNewJob".Translate(), ref _stashInsteadOfDropOnNewJob, "PUAH.stashInsteadOfDropOnNewJobToolTip".Translate());
 		var minimumFreeInventorySpace = (float)Math.Round((1 - _maximumOccupiedCapacityToConsiderHauling) * 100f);
 		var previousAlignment = Text.Anchor;
 		Text.Anchor = TextAnchor.MiddleRight;

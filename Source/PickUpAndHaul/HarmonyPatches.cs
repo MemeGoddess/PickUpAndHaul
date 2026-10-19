@@ -1,12 +1,32 @@
 ﻿using System.Reflection;
 using HarmonyLib;
+using System.Collections;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection.Emit;
 
 namespace PickUpAndHaul;
 [StaticConstructorOnStartup]
 [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony magic paramter names")]
 static class HarmonyPatches
 {
+	public static readonly List<(Type, string)> knownMethodsWhichTriggerCarryDrops =
+	[
+		(typeof(Pawn_JobTracker), nameof(Pawn_JobTracker.StartJob)),
+		// don't drop carried stuff on instructed to fill a biosculpter pod
+		(typeof(JobDriver_CarryToBiosculpterPod), nameof(JobDriver_CarryToBiosculpterPod.DropCarryToGrabIngredients)), // delegate
+		// don't drop carried stuff on entering a portal
+		(typeof(JobDriver_EnterPortal), nameof(JobDriver_EnterPortal.MakeNewToils)), // yield
+		// do not drop the book on the floor, hold onto it
+		(typeof(JobDriver_Reading), nameof(JobDriver_Reading.MakeNewToils)), // yield
+		// left-over reloading
+		(typeof(JobDriver_Reload), nameof(JobDriver_Reload.MakeNewToils)), // yield
+		(typeof(PawnFlyer), nameof(PawnFlyer.MakeFlyer)), // direct call
+		// drafting drops whatever is being carried on the ground
+		(typeof(Pawn_DraftController), "set_" + nameof(Pawn_DraftController.Drafted)), // direct call
+		// carrying a thing which isn't for the job
+		(typeof(JobDriver_HaulToCell), nameof(JobDriver_HaulToCell.MakeNewToils)), // yield + delegate
+	];
+
 	static HarmonyPatches()
 	{
 		var harmony = new Harmony("mehni.rimworld.pickupandhaul.main");
@@ -46,6 +66,40 @@ static class HarmonyPatches
 
 		harmony.Patch(AccessTools.Method(typeof(JobGiver_Haul), nameof(JobGiver_Haul.TryGiveJob)),
 			transpiler: new(typeof(HarmonyPatches), nameof(JobGiver_Haul_TryGiveJob_Transpiler)));
+
+		var bindingFlags = BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+		var blockDropCarriedTranspiler = new HarmonyMethod(typeof(HarmonyPatches), nameof(BlockDropCarriedTranspiler));
+		foreach (var (type, methodPrefix) in knownMethodsWhichTriggerCarryDrops)
+		{
+			var prefix = $"<{methodPrefix}>";
+			foreach (var methodInfo in type.GetMethods(bindingFlags))
+			{
+				// delegate or direct method
+				if (methodInfo.IsAbstract && (methodInfo.Name == methodPrefix || methodInfo.Name.StartsWith(prefix)))
+				{
+					harmony.Patch(methodInfo, transpiler: blockDropCarriedTranspiler);
+				}
+			}
+
+			// IEnumerable support
+			foreach (var nestedType in type.GetNestedTypes(BindingFlags.NonPublic))
+			{
+				// delegate+IEnumerable support
+				foreach (var methodInfo in nestedType.GetMethods(bindingFlags))
+				{
+					if (!methodInfo.IsAbstract && methodInfo.Name.StartsWith(prefix))
+					{
+						harmony.Patch(methodInfo, transpiler: blockDropCarriedTranspiler);
+					}
+				}
+
+				var moveNextInfo = nestedType.GetMethod(nameof(IEnumerator.MoveNext), bindingFlags | BindingFlags.FlattenHierarchy);
+				if (moveNextInfo != null && !moveNextInfo.IsAbstract)
+				{
+					harmony.Patch(moveNextInfo, transpiler: blockDropCarriedTranspiler);
+				}
+			}
+		}
 
 		Verse.Log.Message("PickUpAndHaul v1.1.2¼ welcomes you to RimWorld with pointless logspam.");
 	}
@@ -164,4 +218,91 @@ static class HarmonyPatches
 		=> pawn.HasHauledThingInInventory(thing)
 		? Color.Lerp(Color.grey, Color.red, 0.5f)
 		: Color.white;
+
+	private static readonly MethodInfo m_CarryTracker_TryDropCarriedThing1 = AccessTools.Method(typeof(Pawn_CarryTracker), nameof(Pawn_CarryTracker.TryDropCarriedThing), [
+		typeof(IntVec3), typeof(ThingPlaceMode), typeof(Thing).MakeByRefType(), typeof(Action<Thing, int>)
+	]);
+	private static readonly MethodInfo m_CarryTracker_TryDropCarriedThing2 = AccessTools.Method(typeof(Pawn_CarryTracker), nameof(Pawn_CarryTracker.TryDropCarriedThing), [
+		typeof(IntVec3), typeof(int), typeof(ThingPlaceMode), typeof(Thing).MakeByRefType(), typeof(Action<Thing, int>)
+	]);
+	private static readonly MethodInfo m_TryStashToInventoryOrDrop1 = AccessTools.Method(typeof(HarmonyPatches), nameof(TryStashToInventoryOrDrop1));
+	private static readonly MethodInfo m_TryStashToInventoryOrDrop2 = AccessTools.Method(typeof(HarmonyPatches), nameof(TryStashToInventoryOrDrop2));
+
+	private static IEnumerable<CodeInstruction> BlockDropCarriedTranspiler(IEnumerable<CodeInstruction> instructions, MethodBase original)
+	{
+		var foundMatch = false;
+		foreach (var instruction in instructions)
+		{
+			if (instruction.Calls(m_CarryTracker_TryDropCarriedThing1))
+			{
+				foundMatch = true;
+				instruction.opcode = OpCodes.Call;
+				instruction.operand = m_TryStashToInventoryOrDrop1;
+			}
+			else if (instruction.Calls(m_CarryTracker_TryDropCarriedThing2))
+			{
+				foundMatch = true;
+				instruction.opcode = OpCodes.Call;
+				instruction.operand = m_TryStashToInventoryOrDrop2;
+			}
+
+			yield return instruction;
+		}
+
+		if (foundMatch)
+		{
+			Log.Message($"Patched {original.DeclaringType}.{original.Name} for calling TryDropCarriedThing");
+		}
+	}
+
+	private static bool TryAddItemToInventory(Pawn pawn, Thing thing, out Thing transferredThing)
+	{
+		transferredThing = null;
+		if (thing == null
+		    || Settings.StashInsteadOfDropOnNewJob
+		    || thing.Destroyed
+		    || !Settings.AllowCorpses && thing is Corpse
+		    || thing is Pawn
+		    || pawn.IsQuestLodger()
+		   )
+		{
+			Log.Message($"{pawn} can't put {thing} into inventory, so will drop instead");
+			return false;
+		}
+
+		var count = thing.stackCount;
+		var moveCount = pawn.carryTracker.innerContainer.TryTransferToContainer(thing, pawn.inventory.innerContainer, count, out transferredThing);
+		if (moveCount == 0 || transferredThing == null)
+		{
+			Log.Message($"{pawn} failed to stash {thing} into inventory, so will drop instead");
+			return false;
+		}
+
+		Log.Message($"{pawn} stashed {thing} into inventory before starting another job");
+		pawn.HauledToInventoryComp()?.RegisterHauledItem(transferredThing);
+
+		return moveCount != count;
+	}
+
+	private static bool TryStashToInventoryOrDrop1(Pawn_CarryTracker carryTracker, IntVec3 dropLoc, ThingPlaceMode mode, out Thing resultingThing, Action<Thing, int> placedAction)
+	{
+		if (!TryAddItemToInventory(carryTracker.pawn, carryTracker.CarriedThing, out _))
+		{
+			return carryTracker.TryDropCarriedThing(dropLoc, mode, out resultingThing, placedAction);
+		}
+
+		resultingThing = null;
+		return false;
+	}
+
+	private static bool TryStashToInventoryOrDrop2(Pawn_CarryTracker carryTracker, IntVec3 dropLoc, int count, ThingPlaceMode mode, out Thing resultingThing, Action<Thing, int> placedAction)
+	{
+		if (!TryAddItemToInventory(carryTracker.pawn, carryTracker.CarriedThing, out _))
+		{
+			return carryTracker.TryDropCarriedThing(dropLoc, count, mode, out resultingThing, placedAction);
+		}
+
+		resultingThing = null;
+		return false;
+	}
 }

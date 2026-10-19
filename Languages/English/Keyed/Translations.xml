@@ -9,6 +9,8 @@
 	<PUAH.allowMechanoidsTooltip>Requires What The Hack or similar mods. Default On.</PUAH.allowMechanoidsTooltip>
 	<PUAH.alwaysAllowPickup>Force allow pickup in home area for non-quest pawns</PUAH.alwaysAllowPickup>
 	<PUAH.alwaysAllowPickupTooltip>The home map has additional restrictions on what things can be picked up, this simplifies so remote maps and home maps behave the same</PUAH.alwaysAllowPickupTooltip>
+	<PUAH.stashInsteadOfDropOnNewJob>Auto-stash on new job if carrying a thing</PUAH.stashInsteadOfDropOnNewJob>
+	<PUAH.stashInsteadOfDropOnNewJobToolTip>Attempts to stash into inventory instead of dropping on the floor when starting a new job</PUAH.stashInsteadOfDropOnNewJobToolTip>
 	<PUAH.DropThing>Drop (pending)</PUAH.DropThing>
 	<PUAH.minimumFreeInventorySpace>Minimum free inventory space to consider hauling to inventory</PUAH.minimumFreeInventorySpace>
 	<PUAH.minimumFreeInventorySpaceTooltip>Pawns with less free inventory space than defined here just directly use vanilla hauling. 0% makes them always try hauling to inventory, regardless of them having room for more than one potato or not. 100% results in PUAH requiring pawns to be completely naked. Default 20%</PUAH.minimumFreeInventorySpaceTooltip>
