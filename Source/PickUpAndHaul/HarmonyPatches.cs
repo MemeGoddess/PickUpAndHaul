@@ -1,8 +1,10 @@
 ﻿using System.Reflection;
 using HarmonyLib;
+using System.Diagnostics.CodeAnalysis;
 
 namespace PickUpAndHaul;
 [StaticConstructorOnStartup]
+[SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony magic paramter names")]
 static class HarmonyPatches
 {
 	static HarmonyPatches()
@@ -48,37 +50,14 @@ static class HarmonyPatches
 		Verse.Log.Message("PickUpAndHaul v1.1.2¼ welcomes you to RimWorld with pointless logspam.");
 	}
 
-	private static bool Drop_Prefix(Pawn pawn, Thing thing)
-	{
-		var takenToInventory = pawn.GetComp<CompHauledToInventory>();
-		if (takenToInventory == null)
-		{
-			return true;
-		}
+	private static bool Drop_Prefix(Pawn pawn, Thing thing) => !pawn.HasHauledThingInInventory(thing);
 
-		var carriedThing = takenToInventory.GetHashSet();
-		return !carriedThing.Contains(thing);
-	}
-
-	private static void Pawn_InventoryTracker_PostFix(Pawn_InventoryTracker __instance, Thing item)
-	{
-		var takenToInventory = __instance.pawn?.GetComp<CompHauledToInventory>();
-		if (takenToInventory == null)
-		{
-			return;
-		}
-
-		var carriedThing = takenToInventory.GetHashSet();
-		if (carriedThing?.Count > 0)
-		{
-			carriedThing.Remove(item);
-		}
-	}
+	private static void Pawn_InventoryTracker_PostFix(Pawn_InventoryTracker __instance, Thing item) => __instance.pawn.HauledToInventoryComp()?.UnregisterHauledItem(item);
 
 	private static void JobDriver_HaulToCell_PostFix(JobDriver_HaulToCell __instance)
 	{
 		var pawn = __instance.pawn;
-		var takenToInventory = pawn?.GetComp<CompHauledToInventory>();
+		var takenToInventory = pawn.HauledToInventoryComp();
 		if (takenToInventory == null)
 		{
 			return;
@@ -93,13 +72,13 @@ static class HarmonyPatches
 			&& carriedThing != null
 			&& carriedThing.Count != 0) //deliberate hauling job. Should unload.
 		{
-			PawnUnloadChecker.CheckIfPawnShouldUnloadInventory(pawn, true);
+			pawn.CheckIfPawnShouldUnloadInventory(true);
 		}
 	}
 
-	public static void IdleJoy_Postfix(Pawn pawn) => PawnUnloadChecker.CheckIfPawnShouldUnloadInventory(pawn, true);
+	public static void IdleJoy_Postfix(Pawn pawn) => pawn.CheckIfPawnShouldUnloadInventory(true);
 
-	public static void DropUnusedInventory_PostFix(Pawn pawn) => PawnUnloadChecker.CheckIfPawnShouldUnloadInventory(pawn);
+	public static void DropUnusedInventory_PostFix(Pawn pawn) => pawn.CheckIfPawnShouldUnloadInventory();
 
 	public static bool MaxAllowedToPickUpPrefix(Pawn pawn, ref int __result)
 	{
@@ -171,7 +150,7 @@ static class HarmonyPatches
 	}
 
 	private static Color GetColorForHauled(Pawn pawn, Thing thing)
-		=> pawn.GetComp<CompHauledToInventory>()?.GetHashSet().Contains(thing) ?? false
+		=> pawn.HasHauledThingInInventory(thing)
 		? Color.Lerp(Color.grey, Color.red, 0.5f)
 		: Color.white;
 }

@@ -14,7 +14,7 @@ public class JobDriver_HaulToInventory : JobDriver
 	//get next, goto, take, check for more. Branches off to "all over the place"
 	public override IEnumerable<Toil> MakeNewToils()
 	{
-		var takenToInventory = pawn.TryGetComp<CompHauledToInventory>();
+		var takenToInventory = pawn.HauledToInventoryComp();
 
 		var wait = Toils_General.Wait(2);
 

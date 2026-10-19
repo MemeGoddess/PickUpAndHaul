@@ -29,9 +29,9 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 		var begin = Toils_General.Wait(_unloadDuration);
 		yield return begin;
 
-		var carriedThings = pawn.TryGetComp<CompHauledToInventory>().GetHashSet();
-		yield return FindTargetOrDrop(carriedThings);
-		yield return PullItemFromInventory(carriedThings, begin);
+		var HauledToInventoryComp = pawn.HauledToInventoryComp();
+		yield return FindTargetOrDrop(HauledToInventoryComp);
+		yield return PullItemFromInventory(HauledToInventoryComp, begin);
 
 		var releaseReservation = ReleaseReservation();
 		var carryToCell = Toils_Haul.CarryHauledThingToCell(TargetIndex.B);
@@ -73,16 +73,16 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 		};
 	}
 
-	private Toil PullItemFromInventory(HashSet<Thing> carriedThings, Toil wait)
+	private Toil PullItemFromInventory(CompHauledToInventory hauledToInventoryComp, Toil wait)
 	{
 		return new()
 		{
 			initAction = () =>
 			{
 				var thing = job.GetTarget(TargetIndex.A).Thing;
+				hauledToInventoryComp.UnregisterHauledItem(thing);
 				if (thing == null || !pawn.inventory.innerContainer.Contains(thing))
 				{
-					carriedThings.Remove(thing);
 					pawn.jobs.curDriver.JumpToToil(wait);
 					return;
 				}
@@ -91,7 +91,6 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 					Log.Message($"Pawn {pawn} incapable of hauling, dropping {thing}");
 					pawn.inventory.innerContainer.TryDrop(thing, ThingPlaceMode.Near, _countToDrop, out thing);
 					EndJobWith(JobCondition.Succeeded);
-					carriedThings.Remove(thing);
 				}
 				else
 				{
@@ -99,7 +98,6 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 						_countToDrop, out thing);
 					job.count = _countToDrop;
 					job.SetTarget(TargetIndex.A, thing);
-					carriedThings.Remove(thing);
 				}
 
 				if (ModCompatibilityCheck.CombatExtendedIsActive)
@@ -112,17 +110,17 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 		};
 	}
 
-	private Toil FindTargetOrDrop(HashSet<Thing> carriedThings)
+	private Toil FindTargetOrDrop(CompHauledToInventory hauledToInventoryComp)
 	{
 		return new()
 		{
 			initAction = () =>
 			{
-				var unloadableThing = FirstUnloadableThing(pawn, carriedThings);
+				var unloadableThing = FirstUnloadableThing(pawn, hauledToInventoryComp);
 
 				if (unloadableThing.Count == 0)
 				{
-					if (carriedThings.Count == 0)
+					if (hauledToInventoryComp.IsEmpty())
 					{
 						EndJobWith(JobCondition.Succeeded);
 					}
@@ -167,18 +165,18 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 		};
 	}
 
-	private static ThingCount FirstUnloadableThing(Pawn pawn, HashSet<Thing> carriedThings)
+	private static ThingCount FirstUnloadableThing(Pawn pawn, CompHauledToInventory hauledToInventoryComp)
 	{
 		var innerPawnContainer = pawn.inventory.innerContainer;
 
-		foreach (var thing in carriedThings.OrderBy(t => t.def.FirstThingCategory?.index).ThenBy(x => x.def.defName))
+		foreach (var thing in hauledToInventoryComp.GetHashSet().OrderBy(t => t.def.FirstThingCategory?.index).ThenBy(x => x.def.defName))
 		{
 			//find the overlap.
 			if (!innerPawnContainer.Contains(thing))
 			{
 				//merged partially picked up stacks get a different thingID in inventory
 				var stragglerDef = thing.def;
-				carriedThings.Remove(thing);
+				hauledToInventoryComp.UnregisterHauledItem(thing);
 
 				//we have no method of grabbing the newly generated thingID. This is the solution to that.
 				for (var i = 0; i < innerPawnContainer.Count; i++)

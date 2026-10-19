@@ -1,20 +1,17 @@
 ﻿namespace PickUpAndHaul;
-public class PawnUnloadChecker
+public static class PawnUnloadChecker
 {
-	public static void CheckIfPawnShouldUnloadInventory(Pawn pawn, bool forced = false)
+	public static void CheckIfPawnShouldUnloadInventory(this Pawn pawn, bool forced = false)
 	{
-		var job = JobMaker.MakeJob(PickUpAndHaulJobDefOf.UnloadYourHauledInventory, pawn);
-		var itemsTakenToInventory = pawn?.GetComp<CompHauledToInventory>();
-
-		if (itemsTakenToInventory == null)
+		var itemsTakenToInventory = pawn.HauledToInventoryComp();
+		if (itemsTakenToInventory == null || itemsTakenToInventory.IsEmpty())
 		{
 			return;
 		}
 
 		var carriedThing = itemsTakenToInventory.GetHashSet();
-
+		var job = JobMaker.MakeJob(PickUpAndHaulJobDefOf.UnloadYourHauledInventory, pawn);
 		if (pawn.Faction != Faction.OfPlayerSilentFail || !Settings.IsAllowedRace(pawn.RaceProps)
-			|| carriedThing == null || carriedThing.Count == 0
 			|| pawn.inventory.innerContainer is not { } inventoryContainer || inventoryContainer.Count == 0)
 		{
 			return;
