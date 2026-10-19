@@ -112,30 +112,45 @@ static class HarmonyPatches
 	public static IEnumerable<CodeInstruction> GearTabHighlightTranspiler(IEnumerable<CodeInstruction> instructions, MethodBase method)
 	{
 		var ColorWhite = AccessTools.PropertyGetter(typeof(Color), nameof(Color.white));
-
-		var done = false;
+		var state = 0;
 		foreach (var i in instructions)
 		{
-			//// Color color = flag ? Color.grey : Color.white;
-			if (!done && i.Calls(ColorWhite))
+			switch (state)
 			{
-				yield return FishTranspiler.This;
-				yield return FishTranspiler.CallPropertyGetter(typeof(ITab_Pawn_Gear), nameof(ITab_Pawn_Gear.SelPawnForGear));
-				yield return FishTranspiler.Argument(method, "thing");
-				yield return FishTranspiler.Call(GetColorForHauled);
-				done = true;
-			}
-			else
-			{
-				yield return i;
+				// TooltipHandler.TipRegion(rect2, (TipSignal) "DropThing".Translate());
+				case 0 when i.LoadsConstant("DropThing"):
+					state += 1;
+					// GetTipForHauled(pawn,thing)
+					yield return FishTranspiler.This;
+					yield return FishTranspiler.CallPropertyGetter(typeof(ITab_Pawn_Gear), nameof(ITab_Pawn_Gear.SelPawnForGear));
+					yield return FishTranspiler.Argument(method, "thing");
+					yield return FishTranspiler.Call(GetTipForHauled);
+					break;
+				// Color color = flag ? Color.grey : Color.white;
+				case 1 when i.Calls(ColorWhite):
+					state += 1;
+					// GetColorForHauled(pawn,thing)
+					yield return FishTranspiler.This;
+					yield return FishTranspiler.CallPropertyGetter(typeof(ITab_Pawn_Gear), nameof(ITab_Pawn_Gear.SelPawnForGear));
+					yield return FishTranspiler.Argument(method, "thing");
+					yield return FishTranspiler.Call(GetColorForHauled);
+					break;
+				default:
+					yield return i;
+					break;
 			}
 		}
 
-		if (!done)
+		if (state != 2)
 		{
 			Verse.Log.Warning("Pick Up And Haul failed to patch ITab_Pawn_Gear.DrawThingRow. This is only used for coloring and totally harmless, but you might wanna know anyway");
 		}
 	}
+
+	private static string GetTipForHauled(Pawn pawn, Thing thing)
+		=> pawn.HasHauledThingInInventory(thing)
+			? "PUAH.DropThing"
+			: "DropThing";
 
 	private static Color GetColorForHauled(Pawn pawn, Thing thing)
 		=> pawn.HasHauledThingInInventory(thing)
