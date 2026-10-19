@@ -1,55 +1,63 @@
-﻿namespace PickUpAndHaul;
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace PickUpAndHaul;
 public static class PawnUnloadChecker
 {
+	public static float EmptyEncumbrancePercent = 0.9f;
+	public static float EmptyTicksForRotables = 3000;
+
+	public static bool isAutoUnloadInventoryAllowed(this Pawn pawn)
+	{
+		return pawn.Faction == Faction.OfPlayerSilentFail
+		       && Settings.IsAllowedRace(pawn.RaceProps)
+		       && pawn.inventory.innerContainer != null
+		       && pawn.inventory.innerContainer.Count != 0;
+	}
+
 	public static void CheckIfPawnShouldUnloadInventory(this Pawn pawn, bool forced = false)
 	{
+		if (pawn == null || !pawn.isAutoUnloadInventoryAllowed())
+		{
+			return;
+		}
+
 		var itemsTakenToInventory = pawn.HauledToInventoryComp();
 		if (itemsTakenToInventory == null || itemsTakenToInventory.IsEmpty())
 		{
 			return;
 		}
 
-		var carriedThing = itemsTakenToInventory.GetHashSet();
 		var job = JobMaker.MakeJob(PickUpAndHaulJobDefOf.UnloadYourHauledInventory, pawn);
-		if (pawn.Faction != Faction.OfPlayerSilentFail || !Settings.IsAllowedRace(pawn.RaceProps)
-			|| pawn.inventory.innerContainer is not { } inventoryContainer || inventoryContainer.Count == 0)
-		{
-			return;
-		}
-
-		if ((forced && job.TryMakePreToilReservations(pawn, false))
-			|| ((MassUtility.EncumbrancePercent(pawn) >= 0.90f || carriedThing.Count >= 1)
-			&& job.TryMakePreToilReservations(pawn, false)))
+		if ((forced || MassUtility.EncumbrancePercent(pawn) >= EmptyEncumbrancePercent) && job.TryMakePreToilReservations(pawn, false))
 		{
 			pawn.jobs.jobQueue.EnqueueFirst(job, JobTag.Misc);
 			return;
 		}
 
-		if (inventoryContainer.Count >= 1)
+		foreach (var thing in pawn.inventory.innerContainer)
 		{
-			for (var i = 0; i < inventoryContainer.Count; i++)
+			var compRottable = thing.TryGetComp<CompRottable>();
+			if (!(compRottable?.TicksUntilRotAtCurrentTemp < EmptyTicksForRotables))
 			{
-				var compRottable = inventoryContainer[i].TryGetComp<CompRottable>();
-
-				if (compRottable?.TicksUntilRotAtCurrentTemp < 30000)
-				{
-					pawn.jobs.jobQueue.EnqueueFirst(job, JobTag.Misc);
-					return;
-				}
+				continue;
 			}
+
+			pawn.jobs.jobQueue.EnqueueFirst(job, JobTag.Misc);
+			return;
 		}
 
-		if (Find.TickManager.TicksGame % 50 == 0 && inventoryContainer.Count < carriedThing.Count)
+		if (Find.TickManager.TicksGame % 50 == 0 && pawn.inventory.innerContainer.Count < itemsTakenToInventory.GetHashSet().Count)
 		{
 			Verse.Log.Warning("[PickUpAndHaul] " + pawn + " inventory was found out of sync with haul index. Pawn will drop their inventory.");
-			carriedThing.Clear();
+			itemsTakenToInventory.Clear();
 			pawn.inventory.UnloadEverything = true;
 		}
 	}
 }
 
 [DefOf]
-[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "Has to match defName")]
+[SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "Has to match defName")]
+[SuppressMessage("ReSharper", "UnassignedField.Global", Justification = "Auto-populated by rimworld")]
 public static class PickUpAndHaulJobDefOf
 {
 	public static JobDef UnloadYourHauledInventory;

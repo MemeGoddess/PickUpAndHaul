@@ -57,20 +57,8 @@ static class HarmonyPatches
 	private static void JobDriver_HaulToCell_PostFix(JobDriver_HaulToCell __instance)
 	{
 		var pawn = __instance.pawn;
-		var takenToInventory = pawn.HauledToInventoryComp();
-		if (takenToInventory == null)
-		{
-			return;
-		}
-
-		var carriedThing = takenToInventory.GetHashSet();
-
 		if (__instance.job.haulMode == HaulMode.ToCellStorage
-			&& pawn.Faction == Faction.OfPlayerSilentFail
-			&& Settings.IsAllowedRace(pawn.RaceProps)
-			&& (Settings.AllowCorpses || pawn.carryTracker.CarriedThing is not Corpse)
-			&& carriedThing != null
-			&& carriedThing.Count != 0) //deliberate hauling job. Should unload.
+			&& (Settings.AllowCorpses || pawn.carryTracker.CarriedThing is not Corpse))
 		{
 			pawn.CheckIfPawnShouldUnloadInventory(true);
 		}
