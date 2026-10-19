@@ -167,29 +167,40 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 
 	private static ThingCount FirstUnloadableThing(Pawn pawn, CompHauledToInventory hauledToInventoryComp)
 	{
-		var innerPawnContainer = pawn.inventory.innerContainer;
+		if (hauledToInventoryComp.IsEmpty())
+		{
+			return default;
+		}
 
-		foreach (var thing in hauledToInventoryComp.GetHashSet().OrderBy(t => t.def.FirstThingCategory?.index).ThenBy(x => x.def.defName))
+		var pendingDrops = hauledToInventoryComp.GetHashSet();
+		var innerPawnContainer = pawn.inventory.innerContainer;
+		var inventory = new HashSet<Thing>(innerPawnContainer);
+
+		foreach (var thing in pendingDrops.OrderBy(t => t.def.FirstThingCategory?.index).ThenBy(x => x.def.defName))
 		{
 			//find the overlap.
-			if (!innerPawnContainer.Contains(thing))
+			if (inventory.Contains(thing))
 			{
-				//merged partially picked up stacks get a different thingID in inventory
-				var stragglerDef = thing.def;
-				hauledToInventoryComp.UnregisterHauledItem(thing);
+				return new ThingCount(thing, thing.stackCount);
+			}
 
-				//we have no method of grabbing the newly generated thingID. This is the solution to that.
-				for (var i = 0; i < innerPawnContainer.Count; i++)
+			hauledToInventoryComp.UnregisterHauledItem(thing);
+
+			//merged partially picked up stacks get a different thingID in inventory
+			//we have no method of grabbing the newly generated thingID. This is the solution to that.
+			var stragglerDef = thing.def;
+			foreach (var dirtyStraggler in innerPawnContainer)
+			{
+				if (dirtyStraggler.def == stragglerDef)
 				{
-					var dirtyStraggler = innerPawnContainer[i];
-					if (dirtyStraggler.def == stragglerDef)
-					{
-						return new ThingCount(dirtyStraggler, dirtyStraggler.stackCount);
-					}
+					return new ThingCount(dirtyStraggler, dirtyStraggler.stackCount);
 				}
 			}
-			return new ThingCount(thing, thing.stackCount);
 		}
+
+		// Nothing in the hauled to inventory list matches the pawn's inventory, just clear it as it is obviously badly out of sync
+		hauledToInventoryComp.Clear();
+
 		return default;
 	}
 }

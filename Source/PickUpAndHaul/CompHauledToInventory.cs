@@ -30,6 +30,7 @@ public class CompHauledToInventory : ThingComp
 
 	private void TrimList()
 	{
+		// todo check `x.destroyed || x.stackCount == 0` ?
 		takenToInventory.RemoveWhere(x => x == null);
 	}
 
