@@ -70,12 +70,22 @@ static class HarmonyPatches
 
 	public static bool MaxAllowedToPickUpPrefix(Pawn pawn, ref int __result)
 	{
+		if (!Settings.AlwaysAllowPickup)
+		{
+			return true;
+		}
+
 		__result = int.MaxValue;
 		return pawn.IsQuestLodger();
 	}
 
 	public static bool CanBeMadeToDropStuff(Pawn pawn, ref bool __result)
 	{
+		if (!Settings.AlwaysAllowPickup)
+		{
+			return true;
+		}
+
 		__result = !pawn.IsQuestLodger();
 		return false;
 	}
