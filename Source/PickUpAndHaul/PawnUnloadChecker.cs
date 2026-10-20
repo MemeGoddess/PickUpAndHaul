@@ -27,7 +27,7 @@ public static class PawnUnloadChecker
 			return;
 		}
 
-		var job = JobMaker.MakeJob(PickUpAndHaulJobDefOf.UnloadYourHauledInventory, pawn);
+		var job = JobMaker.MakeJob(JobDefOfs.UnloadYourHauledInventory, pawn);
 		if ((forced || MassUtility.EncumbrancePercent(pawn) >= EmptyEncumbrancePercent) && job.TryMakePreToilReservations(pawn, false))
 		{
 			pawn.jobs.jobQueue.EnqueueFirst(job, JobTag.Misc);
@@ -53,13 +53,4 @@ public static class PawnUnloadChecker
 			pawn.inventory.UnloadEverything = true;
 		}
 	}
-}
-
-[DefOf]
-[SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "Has to match defName")]
-[SuppressMessage("ReSharper", "UnassignedField.Global", Justification = "Auto-populated by rimworld")]
-public static class PickUpAndHaulJobDefOf
-{
-	public static JobDef UnloadYourHauledInventory;
-	public static JobDef HaulToInventory;
 }

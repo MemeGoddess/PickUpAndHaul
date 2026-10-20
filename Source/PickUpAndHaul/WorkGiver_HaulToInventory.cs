@@ -117,12 +117,12 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 			return HaulAIUtility.HaulToStorageJob(pawn, thing, forced);
 		}
 
-		var job = JobMaker.MakeJob(PickUpAndHaulJobDefOf.HaulToInventory, null, storeTarget);   //Things will be in queues
+		var job = JobMaker.MakeJob(JobDefOfs.HaulToInventory, null, storeTarget);   //Things will be in queues
 		Log.Message($"-------------------------------------------------------------------");
 		Log.Message($"------------------------------------------------------------------");//different size so the log doesn't count it 2x
 		Log.Message($"{pawn} job found to haul: {thing} to {storeTarget}:{capacityStoreCell}, looking for more now");
 
-		//Find what fits in inventory, set nextThingLeftOverCount to be 
+		//Find what fits in inventory, set nextThingLeftOverCount to be
 		var nextThingLeftOverCount = 0;
 		var encumberance = MassUtility.EncumbrancePercent(pawn);
 		job.targetQueueA = new List<LocalTargetInfo>(); //more things
@@ -140,7 +140,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 		var distanceToSearchMore = Math.Max(12f, distanceToHaul);
 
 		//Find extra things than can be hauled to inventory, queue to reserve them
-		var haulUrgentlyDesignation = PickUpAndHaulDesignationDefOf.haulUrgently;
+		var haulUrgentlyDesignation = DesignationDefs.HaulUrgentlyDesignation;
 		var isUrgent = ModCompatibilityCheck.AllowToolIsActive && designationManager.DesignationOn(thing)?.def == haulUrgentlyDesignation;
 
 		var haulables = new List<Thing>(map.listerHaulables.ThingsPotentiallyNeedingHauling());
@@ -646,9 +646,4 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
 		return haulDestination != null;
 	}
-}
-
-public static class PickUpAndHaulDesignationDefOf
-{
-	public static DesignationDef haulUrgently = DefDatabase<DesignationDef>.GetNamedSilentFail("HaulUrgentlyDesignation");
 }

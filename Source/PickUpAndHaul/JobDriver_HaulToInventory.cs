@@ -85,10 +85,9 @@ public class JobDriver_HaulToInventory : JobDriver
 				var haulables = TempListForThings;
 				haulables.Clear();
 				haulables.AddRange(pawn.Map.listerHaulables.ThingsPotentiallyNeedingHauling());
-				var haulMoreWork = DefDatabase<WorkGiverDef>.AllDefsListForReading.First(wg => wg.Worker is WorkGiver_HaulToInventory).Worker as WorkGiver_HaulToInventory;
 				Job haulMoreJob = null;
 				var haulMoreThing = WorkGiver_HaulToInventory.GetClosestAndRemove(pawn.Position, pawn.Map, haulables, PathEndMode.ClosestTouch,
-					   TraverseParms.For(pawn), 12, t => (haulMoreJob = haulMoreWork.JobOnThing(pawn, t)) != null);
+					   TraverseParms.For(pawn), 12, t => (haulMoreJob = WorkGiverDefs.HaulToInventoryWorker.JobOnThing(pawn, t)) != null);
 
 				//WorkGiver_HaulToInventory found more work nearby
 				if (haulMoreThing != null)
@@ -117,7 +116,7 @@ public class JobDriver_HaulToInventory : JobDriver
 				var curJob = actor.jobs.curJob;
 				var storeCell = curJob.targetB;
 
-				var unloadJob = JobMaker.MakeJob(PickUpAndHaulJobDefOf.UnloadYourHauledInventory, storeCell);
+				var unloadJob = JobMaker.MakeJob(JobDefOfs.UnloadYourHauledInventory, storeCell);
 				if (unloadJob.TryMakePreToilReservations(actor, false))
 				{
 					actor.jobs.jobQueue.EnqueueFirst(unloadJob, JobTag.Misc);
