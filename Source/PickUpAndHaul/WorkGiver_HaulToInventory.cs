@@ -18,15 +18,13 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
 	public static bool GoodThingToHaul(Thing t, Pawn pawn)
 		=> OkThingToHaul(t, pawn)
-		&& IsNotCorpseOrAllowed(t)
+		&& t.IsNotCorpseOrAllowed()
 		&& !t.IsInValidBestStorage();
 
 	public static bool OkThingToHaul(Thing t, Pawn pawn)
 		=> t.Spawned
 		&& pawn.CanReserve(t)
 		&& !t.IsForbidden(pawn);
-
-	public static bool IsNotCorpseOrAllowed(Thing t) => Settings.AllowCorpses || t is not Corpse;
 
 	public override IEnumerable<Thing> PotentialWorkThingsGlobal(Pawn pawn)
 	{
@@ -45,7 +43,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
 	public override bool HasJobOnThing(Pawn pawn, Thing thing, bool forced = false)
 		=> OkThingToHaul(thing, pawn)
-		&& IsNotCorpseOrAllowed(thing)
+		&& thing.IsNotCorpseOrAllowed()
 		&& HaulAIUtility.PawnCanAutomaticallyHaulFast(pawn, thing, forced)
 		&& StoreUtility.TryFindBestBetterStorageFor(thing, pawn, pawn.Map, StoreUtility.CurrentStoragePriorityOf(thing), pawn.Faction, out _, out _, false);
 
@@ -65,7 +63,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 		if (OverAllowedGearCapacity(pawn)
 			|| pawn.GetComp<CompHauledToInventory>() is null // Misc. Robots compatibility
 															 // See https://github.com/catgirlfighter/RimWorld_CommonSense/blob/master/Source/CommonSense11/CommonSense/OpportunisticTasks.cs#L129-L140
-			|| !IsNotCorpseOrAllowed(thing) //This WorkGiver gets hijacked by AllowTool and expects us to urgently haul corpses.
+			|| !thing.IsNotCorpseOrAllowed() //This WorkGiver gets hijacked by AllowTool and expects us to urgently haul corpses.
 			|| MassUtility.WillBeOverEncumberedAfterPickingUp(pawn, thing, 1)) //https://github.com/Mehni/PickUpAndHaul/pull/18
 		{
 			return HaulAIUtility.HaulToStorageJob(pawn, thing, forced);

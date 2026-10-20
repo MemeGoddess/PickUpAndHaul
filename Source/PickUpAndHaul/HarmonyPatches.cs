@@ -58,7 +58,7 @@ static class HarmonyPatches
 	{
 		var pawn = __instance.pawn;
 		if (__instance.job.haulMode == HaulMode.ToCellStorage
-			&& (Settings.AllowCorpses || pawn.carryTracker.CarriedThing is not Corpse))
+			&& pawn.carryTracker.CarriedThing.IsNotCorpseOrAllowed())
 		{
 			pawn.CheckIfPawnShouldUnloadInventory(true);
 		}

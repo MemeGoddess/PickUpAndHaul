@@ -4,6 +4,12 @@ namespace PickUpAndHaul;
 
 public static class InventoryUtilities
 {
+	extension(Thing thing)
+	{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public bool IsNotCorpseOrAllowed() => Settings.AllowCorpses || thing is not Corpse;
+	}
+
 	extension(Pawn pawn)
 	{
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
