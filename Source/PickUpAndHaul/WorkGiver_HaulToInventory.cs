@@ -23,7 +23,6 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
 	public static bool OkThingToHaul(Thing t, Pawn pawn)
 		=> t.Spawned
-		&& pawn.CanReserve(t)
 		&& !t.IsForbidden(pawn);
 
 	public override IEnumerable<Thing> PotentialWorkThingsGlobal(Pawn pawn)
