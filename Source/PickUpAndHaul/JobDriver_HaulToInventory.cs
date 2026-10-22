@@ -44,17 +44,15 @@ public class JobDriver_HaulToInventory : JobDriver
 
 				//get max we can pick up
 				var countToPickUp = Mathf.Min(job.count, MassUtility.CountToPickUpUntilOverEncumbered(actor, thing));
-				Log.Message($"{actor} is hauling to inventory {thing}:{countToPickUp}");
-
 				if (ModCompatibilityCheck.CombatExtendedIsActive)
 				{
 					countToPickUp = CompatHelper.CanFitInInventory(pawn, thing);
 				}
-
 				if (countToPickUp <= 0)
 				{
 					return;
 				}
+				Log.Message($"{actor} is hauling to inventory {thing}:{countToPickUp}");
 
 				var splitThing = thing.SplitOff(countToPickUp);
 				var shouldMerge = takenToInventory.GetHashSet().Any(x => x.def == thing.def);
@@ -66,16 +64,12 @@ public class JobDriver_HaulToInventory : JobDriver
 					CompatHelper.UpdateInventory(pawn);
 				}
 
-				//thing still remains, so queue up hauling if we can + end the current job (smooth/instant transition)
-				//This will technically release the reservations in the queue, but what can you do
+				//thing still remains, so manipulate the queue to make it the next thing to try picking up
 				if (thing.Spawned)
 				{
-					var haul = HaulAIUtility.HaulToStorageJob(actor, thing, actor.CurJob.playerForced);
-					if (haul?.TryMakePreToilReservations(actor, false) ?? false)
-					{
-						actor.jobs.jobQueue.EnqueueFirst(haul, JobTag.Misc);
-					}
-					actor.jobs.curDriver.JumpToToil(wait);
+					Log.Message($"{pawn} picked up {countToPickUp} but {thing.stackCount} remains");
+					job.count += 1;
+					job.GetTargetQueue(TargetIndex.A).Insert(0, thing);
 				}
 			}
 		};
@@ -96,7 +90,7 @@ public class JobDriver_HaulToInventory : JobDriver
 				//WorkGiver_HaulToInventory found more work nearby
 				if (haulMoreThing != null)
 				{
-					Log.Message($"{pawn} hauling again : {haulMoreThing}");
+					Log.Message($"{pawn} hauling again : {haulMoreThing}:{haulMoreThing.stackCount}");
 					if (haulMoreJob == null)
 					{
 						Verse.Log.Error($"Returned an thing to haul but haul job is missing");
