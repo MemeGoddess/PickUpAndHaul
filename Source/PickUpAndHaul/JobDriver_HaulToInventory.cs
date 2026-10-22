@@ -82,9 +82,8 @@ public class JobDriver_HaulToInventory : JobDriver
 		{
 			initAction = () =>
 			{
-				var haulables = TempListForThings;
-				haulables.Clear();
-				haulables.AddRange(pawn.Map.listerHaulables.ThingsPotentiallyNeedingHauling());
+				var haulables = WorkGiver_HaulToInventory.SortedHaulables(pawn);
+
 				Job haulMoreJob = null;
 				var haulMoreThing = WorkGiver_HaulToInventory.GetClosestAndRemove(pawn.Position, pawn.Map, haulables, PathEndMode.ClosestTouch,
 					   TraverseParms.For(pawn), 12, t => (haulMoreJob = WorkGiverDefs.HaulToInventoryWorker.JobOnThing(pawn, t)) != null);
@@ -127,8 +126,6 @@ public class JobDriver_HaulToInventory : JobDriver
 		};
 		yield return wait;
 	}
-
-	private static List<Thing> TempListForThings { get; } = new();
 
 	/// <summary>
 	/// the workgiver checks for encumbered, this is purely extra for CE

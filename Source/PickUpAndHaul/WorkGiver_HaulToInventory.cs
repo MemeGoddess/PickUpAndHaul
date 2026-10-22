@@ -27,7 +27,16 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
 	public override IEnumerable<Thing> PotentialWorkThingsGlobal(Pawn pawn)
 	{
+		return SortedHaulables(pawn);
+	}
+
+	public static List<Thing> SortedHaulables(Pawn pawn, Thing removeThing = null)
+	{
 		var list = pawn.Map.listerHaulables.ThingsPotentiallyNeedingHauling().ToList();
+		if (removeThing != null)
+		{
+			list.Remove(removeThing);
+		}
 		Comparer.rootCell = pawn.Position;
 		list.Sort(Comparer);
 		return list;
@@ -140,9 +149,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 		var haulUrgentlyDesignation = DesignationDefs.HaulUrgentlyDesignation;
 		var isUrgent = ModCompatibilityCheck.AllowToolIsActive && designationManager.DesignationOn(thing)?.def == haulUrgentlyDesignation;
 
-		var haulables = new List<Thing>(map.listerHaulables.ThingsPotentiallyNeedingHauling());
-		Comparer.rootCell = thing.Position;
-		haulables.Sort(Comparer);
+		var haulables = SortedHaulables(pawn, thing);
 
 		var nextThing = thing;
 		var lastThing = thing;
@@ -167,7 +174,6 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 			=> (!isUrgent || designationManager.DesignationOn(t)?.def == haulUrgentlyDesignation)
 			&& GoodThingToHaul(t, pawn) && HaulAIUtility.PawnCanAutomaticallyHaulFast(pawn, t, false); //forced is false, may differ from first thing
 
-		haulables.Remove(thing);
 		var traverseParms = TraverseParms.For(pawn);
 
 		do
@@ -280,18 +286,18 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 		public static implicit operator LocalTargetInfo(StoreTarget target) => target.container != null ? target.container : target.cell;
 	}
 
-	public static Thing GetClosestAndRemove(IntVec3 center, Map map, List<Thing> searchSet, PathEndMode peMode, TraverseParms traverseParams, float maxDistance = 9999f, Predicate<Thing> validator = null)
+	public static Thing GetClosestAndRemove(IntVec3 center, Map map, List<Thing> sortedSearchSet, PathEndMode peMode, TraverseParms traverseParams, float maxDistance = 9999f, Predicate<Thing> validator = null)
 	{
-		if (searchSet == null || !searchSet.Any())
+		if (sortedSearchSet == null || !sortedSearchSet.Any())
 		{
 			return null;
 		}
 
 		var maxDistanceSquared = maxDistance * maxDistance;
 
-		while (FindClosestThing(searchSet, center, out var i) is { } closestThing)
+		while (FindClosestThing(sortedSearchSet, center, out var i) is { } closestThing)
 		{
-			searchSet.RemoveAt(i);
+			sortedSearchSet.RemoveAt(i);
 			if (!closestThing.Spawned)
 			{
 				continue;
