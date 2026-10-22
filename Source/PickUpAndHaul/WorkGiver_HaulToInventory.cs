@@ -30,12 +30,15 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 		return SortedHaulables(pawn);
 	}
 
-	public static List<Thing> SortedHaulables(Pawn pawn, Thing removeThing = null)
+	/// <summary>
+	/// GetClosestAndRemove depends on this being sorted from furthest to closest
+	/// </summary>
+	public static List<Thing> SortedHaulables(Pawn pawn)
 	{
 		var list = new List<Thing>();
 		foreach (var thing in pawn.Map.listerHaulables.ThingsPotentiallyNeedingHauling())
 		{
-			if (thing.Spawned && removeThing != thing)
+			if (thing.Spawned)
 			{
 				list.Add(thing);
 			}
@@ -49,7 +52,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 	public class ThingPositionComparer : IComparer<Thing>
 	{
 		public IntVec3 rootCell;
-		public int Compare(Thing x, Thing y) => (x.Position - rootCell).LengthHorizontalSquared.CompareTo((y.Position - rootCell).LengthHorizontalSquared);
+		public int Compare(Thing x, Thing y) => (y.Position - rootCell).LengthHorizontalSquared.CompareTo((x.Position - rootCell).LengthHorizontalSquared);
 	}
 
 	public override bool HasJobOnThing(Pawn pawn, Thing thing, bool forced = false)
@@ -152,7 +155,10 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 		var haulUrgentlyDesignation = DesignationDefs.HaulUrgentlyDesignation;
 		var isUrgent = ModCompatibilityCheck.AllowToolIsActive && designationManager.DesignationOn(thing)?.def == haulUrgentlyDesignation;
 
-		var haulables = SortedHaulables(pawn, thing);
+		// list should be considered cachable, so copy it into a local list preserving sorting but filter out the item
+		var haulablesRelativeToPawn = SortedHaulables(pawn);
+		var haulables = new List<Thing>(haulablesRelativeToPawn);
+		haulables.Remove(thing);
 
 		var nextThing = thing;
 		var lastThing = thing;
@@ -291,58 +297,34 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
 	public static Thing GetClosestAndRemove(IntVec3 center, Map map, List<Thing> sortedSearchSet, PathEndMode peMode, TraverseParms traverseParams, float maxDistance = 9999f, Predicate<Thing> validator = null)
 	{
-		if (sortedSearchSet == null || !sortedSearchSet.Any())
+		if (sortedSearchSet == null || sortedSearchSet.Count == 0)
 		{
 			return null;
 		}
 
 		var maxDistanceSquared = maxDistance * maxDistance;
-
-		while (FindClosestThing(sortedSearchSet, center, out var i) is { } closestThing)
+		// list is sorted from furthest to closest, this allows pruning from the end of the list efficiently
+		for (var i = sortedSearchSet.Count - 1; i >= 0; i--)
 		{
+			var candidate = sortedSearchSet[i];
 			sortedSearchSet.RemoveAt(i);
-
-			if ((center - closestThing.Position).LengthHorizontalSquared > maxDistanceSquared)
+			if ((center - candidate.Position).LengthHorizontalSquared > maxDistanceSquared)
 			{
 				break;
 			}
 
-			if (!map.reachability.CanReach(center, closestThing, peMode, traverseParams))
+			if (!map.reachability.CanReach(center, candidate, peMode, traverseParams))
 			{
 				continue;
 			}
 
-			if (validator == null || validator(closestThing))
+			if (validator == null || validator(candidate))
 			{
-				return closestThing;
+				return candidate;
 			}
 		}
 
 		return null;
-	}
-
-	public static Thing FindClosestThing(List<Thing> searchSet, IntVec3 center, out int index)
-	{
-		if (!searchSet.Any())
-		{
-			index = -1;
-			return null;
-		}
-
-		var closestThing = searchSet[0];
-		index = 0;
-		var closestThingSquaredLength = (center - closestThing.Position).LengthHorizontalSquared;
-		var count = searchSet.Count;
-		for (var i = 1; i < count; i++)
-		{
-			if (closestThingSquaredLength > (center - searchSet[i].Position).LengthHorizontalSquared)
-			{
-				closestThing = searchSet[i];
-				index = i;
-				closestThingSquaredLength = (center - closestThing.Position).LengthHorizontalSquared;
-			}
-		}
-		return closestThing;
 	}
 
 	public class CellAllocation
@@ -490,7 +472,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 		{
 			storagePriority = foundCell2.GetSlotGroup(map).Settings.Priority;
 		}
-		
+
 		if (!TryFindBestBetterNonSlotGroupStorageFor(t, carrier, map, currentPriority, faction, out var haulDestination2))
 		{
 			haulDestination2 = null;
