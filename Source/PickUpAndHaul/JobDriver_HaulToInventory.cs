@@ -18,8 +18,9 @@ public class JobDriver_HaulToInventory : JobDriver
 
 		var wait = Toils_General.Wait(2);
 
-		var nextTarget = Toils_JobTransforms.ExtractNextTargetFromQueue(TargetIndex.A); //also does count
-		yield return nextTarget;
+		var pruneQueue = Toils_JobTransforms.ClearDespawnedNullOrForbiddenQueuedTargets(TargetIndex.A);
+		yield return pruneQueue;
+		yield return Toils_JobTransforms.ExtractNextTargetFromQueue(TargetIndex.A); //also does count
 
 		yield return CheckForOverencumberedForCombatExtended();
 
@@ -74,7 +75,7 @@ public class JobDriver_HaulToInventory : JobDriver
 			}
 		};
 		yield return takeThing;
-		yield return Toils_Jump.JumpIf(nextTarget, () => !job.targetQueueA.NullOrEmpty());
+		yield return Toils_Jump.JumpIf(pruneQueue, () => !job.targetQueueA.NullOrEmpty());
 
 		//Find more to haul, in case things spawned while this was in progess
 		yield return new Toil
