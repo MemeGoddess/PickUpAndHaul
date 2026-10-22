@@ -27,11 +27,15 @@ public static class PawnUnloadChecker
 			return;
 		}
 
-		var job = JobMaker.MakeJob(JobDefOfs.UnloadYourHauledInventory, pawn);
-		if ((forced || MassUtility.EncumbrancePercent(pawn) >= EmptyEncumbrancePercent) && job.TryMakePreToilReservations(pawn, false))
+		// Multiplayer: MakeJob consumes a unique job ID, so it must only run when the pawn really has hauled items to unload.
+		if (forced || MassUtility.EncumbrancePercent(pawn) >= EmptyEncumbrancePercent)
 		{
-			pawn.jobs.jobQueue.EnqueueFirst(job, JobTag.Misc);
-			return;
+			var job = JobMaker.MakeJob(JobDefOfs.UnloadYourHauledInventory, pawn);
+			if (job.TryMakePreToilReservations(pawn, false))
+			{
+				pawn.jobs.jobQueue.EnqueueFirst(job, JobTag.Misc);
+				return;
+			}
 		}
 
 		foreach (var thing in pawn.inventory.innerContainer)
@@ -42,6 +46,7 @@ public static class PawnUnloadChecker
 				continue;
 			}
 
+			var job = JobMaker.MakeJob(JobDefOfs.UnloadYourHauledInventory, pawn);
 			pawn.jobs.jobQueue.EnqueueFirst(job, JobTag.Misc);
 			return;
 		}
