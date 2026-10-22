@@ -7,6 +7,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PickUpAndHaul", "PickUpAndH
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IHoldMultipleThings", "IHoldMultipleThings\IHoldMultipleThings.csproj", "{E1536A54-D289-41FA-9D0B-8A2F6812C7FA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevTools", "..\DevTools\DevTools\DevTools.csproj", "{5C93B17C-E536-49A4-B7CC-80903C0AA6F5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PickUpAndHaul.Tests", "PickUpAndHaul.Tests\PickUpAndHaul.Tests.csproj", "{8033EAB2-FEAD-484C-8155-303724710FC1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +25,14 @@ Global
 		{E1536A54-D289-41FA-9D0B-8A2F6812C7FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E1536A54-D289-41FA-9D0B-8A2F6812C7FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E1536A54-D289-41FA-9D0B-8A2F6812C7FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5C93B17C-E536-49A4-B7CC-80903C0AA6F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5C93B17C-E536-49A4-B7CC-80903C0AA6F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5C93B17C-E536-49A4-B7CC-80903C0AA6F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5C93B17C-E536-49A4-B7CC-80903C0AA6F5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8033EAB2-FEAD-484C-8155-303724710FC1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8033EAB2-FEAD-484C-8155-303724710FC1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8033EAB2-FEAD-484C-8155-303724710FC1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8033EAB2-FEAD-484C-8155-303724710FC1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
