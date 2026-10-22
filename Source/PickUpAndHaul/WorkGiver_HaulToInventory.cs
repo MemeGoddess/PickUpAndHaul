@@ -197,11 +197,11 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
 		if (nextThing == null)
 		{
-		skipCells = null;
-		skipThings = null;
-			//skipTargets = null;
-		return job;
-	}
+			skipCells = null;
+			skipThings = null;
+				//skipTargets = null;
+			return job;
+		}
 
 		//Find what can be carried
 		//this doesn't actually get pickupandhauled, but will hold the reservation so others don't grab what this pawn can carry
