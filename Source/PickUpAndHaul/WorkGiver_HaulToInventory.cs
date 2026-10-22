@@ -32,10 +32,13 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
 	public static List<Thing> SortedHaulables(Pawn pawn, Thing removeThing = null)
 	{
-		var list = pawn.Map.listerHaulables.ThingsPotentiallyNeedingHauling().ToList();
-		if (removeThing != null)
+		var list = new List<Thing>();
+		foreach (var thing in pawn.Map.listerHaulables.ThingsPotentiallyNeedingHauling())
 		{
-			list.Remove(removeThing);
+			if (thing.Spawned && removeThing != thing)
+			{
+				list.Add(thing);
+			}
 		}
 		Comparer.rootCell = pawn.Position;
 		list.Sort(Comparer);
@@ -298,10 +301,6 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 		while (FindClosestThing(sortedSearchSet, center, out var i) is { } closestThing)
 		{
 			sortedSearchSet.RemoveAt(i);
-			if (!closestThing.Spawned)
-			{
-				continue;
-			}
 
 			if ((center - closestThing.Position).LengthHorizontalSquared > maxDistanceSquared)
 			{
