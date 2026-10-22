@@ -168,6 +168,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 			&& GoodThingToHaul(t, pawn) && HaulAIUtility.PawnCanAutomaticallyHaulFast(pawn, t, false); //forced is false, may differ from first thing
 
 		haulables.Remove(thing);
+		var traverseParms = TraverseParms.For(pawn);
 
 		do
 		{
@@ -186,15 +187,15 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 			}
 		}
 		while ((nextThing = GetClosestAndRemove(lastThing.Position, map, haulables, PathEndMode.ClosestTouch,
-			TraverseParms.For(pawn), distanceToSearchMore, Validator)) != null);
-		
+			       traverseParms, distanceToSearchMore, Validator)) != null);
+
 		if (nextThing == null)
 		{
-			skipCells = null;
-			skipThings = null;
+		skipCells = null;
+		skipThings = null;
 			//skipTargets = null;
-			return job;
-		}
+		return job;
+	}
 
 		//Find what can be carried
 		//this doesn't actually get pickupandhauled, but will hold the reservation so others don't grab what this pawn can carry
