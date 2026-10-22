@@ -3,16 +3,17 @@
 	<PropertyGroup>
 		<RootNamespace>IHoldMultipleThings</RootNamespace>
 		<AssemblyName>IHoldMultipleThings</AssemblyName>
-		<TargetFramework>net48</TargetFramework>
+		<TargetFramework>net10.0</TargetFramework>
 		<LangVersion>10.0</LangVersion>
 		<PlatformTarget>AnyCPU</PlatformTarget>
 		<Optimize>true</Optimize>
 		<DebugType>none</DebugType>
 		<ErrorReport>prompt</ErrorReport>
-		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+        <GenerateDependencyFile>false</GenerateDependencyFile>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<PublicizeAsReferenceAssemblies>false</PublicizeAsReferenceAssemblies>
 		<WarningLevel>5</WarningLevel>
-        <Version>1.6</Version>
+        <Version>1.7</Version>
         <OutputPath>..\..\$(Version)\Assemblies\</OutputPath>
 	</PropertyGroup>
 	<ItemGroup>
