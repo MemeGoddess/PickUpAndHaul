@@ -92,6 +92,11 @@ public class JobDriver_HaulToInventory : JobDriver
 				if (haulMoreThing != null)
 				{
 					Log.Message($"{pawn} hauling again : {haulMoreThing}");
+					if (haulMoreJob == null)
+					{
+						Verse.Log.Error($"Returned an thing to haul but haul job is missing");
+						return;
+					}
 					if (haulMoreJob.TryMakePreToilReservations(pawn, false))
 					{
 						pawn.jobs.jobQueue.EnqueueFirst(haulMoreJob, JobTag.Misc);
