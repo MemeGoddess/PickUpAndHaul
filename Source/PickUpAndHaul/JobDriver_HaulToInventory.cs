@@ -37,7 +37,10 @@ public class JobDriver_HaulToInventory : JobDriver
 			{
 				var actor = pawn;
 				var thing = actor.CurJob.GetTarget(TargetIndex.A).Thing;
-				Toils_Haul.ErrorCheckForCarry(actor, thing);
+				if (Toils_Haul.ErrorCheckForCarry(actor, thing))
+				{
+					return;
+				}
 
 				//get max we can pick up
 				var countToPickUp = Mathf.Min(job.count, MassUtility.CountToPickUpUntilOverEncumbered(actor, thing));
@@ -48,17 +51,19 @@ public class JobDriver_HaulToInventory : JobDriver
 					countToPickUp = CompatHelper.CanFitInInventory(pawn, thing);
 				}
 
-				if (countToPickUp > 0)
+				if (countToPickUp <= 0)
 				{
-					var splitThing = thing.SplitOff(countToPickUp);
-					var shouldMerge = takenToInventory.GetHashSet().Any(x => x.def == thing.def);
-					actor.inventory.GetDirectlyHeldThings().TryAdd(splitThing, shouldMerge);
-					takenToInventory.RegisterHauledItem(splitThing);
+					return;
+				}
 
-					if (ModCompatibilityCheck.CombatExtendedIsActive)
-					{
-						CompatHelper.UpdateInventory(pawn);
-					}
+				var splitThing = thing.SplitOff(countToPickUp);
+				var shouldMerge = takenToInventory.GetHashSet().Any(x => x.def == thing.def);
+				actor.inventory.GetDirectlyHeldThings().TryAdd(splitThing, shouldMerge);
+				takenToInventory.RegisterHauledItem(splitThing);
+
+				if (ModCompatibilityCheck.CombatExtendedIsActive)
+				{
+					CompatHelper.UpdateInventory(pawn);
 				}
 
 				//thing still remains, so queue up hauling if we can + end the current job (smooth/instant transition)
