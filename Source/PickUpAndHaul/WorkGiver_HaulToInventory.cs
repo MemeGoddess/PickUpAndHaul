@@ -196,7 +196,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 				{
 					//can't CountToPickUpUntilOverEncumbered here, pawn doesn't actually hold these things yet
 					nextThingLeftOverCount = CountPastCapacity(pawn, nextThing, encumberance);
-					Log.Message($"Inventory allocated, will carry {nextThing}:{nextThingLeftOverCount}");
+					Log.Message($"{pawn} Inventory allocated, will carry {nextThing}:{nextThingLeftOverCount}");
 					break;
 				}
 			}
@@ -219,13 +219,13 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 		var carryCapacity = pawn.carryTracker.MaxStackSpaceEver(nextThing.def) - nextThingLeftOverCount;
 		if (carryCapacity == 0)
 		{
-			Log.Message("Can't carry more, nevermind!");
+			Log.Message($"{pawn} Can't carry more, nevermind!");
 			skipCells = null;
 			skipThings = null;
 			//skipTargets = null;
 			return job;
 		}
-		Log.Message($"Looking for more like {nextThing}");
+		Log.Message($"{pawn} Looking for more like {nextThing}");
 
 		while ((nextThing = GetClosestAndRemove(nextThing.Position, map, haulables,
 			   PathEndMode.ClosestTouch, TraverseParms.For(pawn), 8f, Validator)) != null)
@@ -241,7 +241,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 			{
 				var lastCount = job.countQueue.Pop() + carryCapacity;
 				job.countQueue.Add(lastCount);
-				Log.Message($"Nevermind, last count is {lastCount}");
+				Log.Message($"{pawn} Nevermind, last count is {lastCount}");
 				break;
 			}
 		}
@@ -378,7 +378,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
 					storeCellCapacity[storeCell] = new(nextThing, CapacityAt(nextThing, nextStoreCell, map));
 
-					Log.Message($"New cell for unstackable {nextThing} = {nextStoreCell}");
+					Log.Message($"{pawn} New cell for unstackable {nextThing} = {nextStoreCell}");
 				}
 				else
 				{
@@ -388,12 +388,12 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
 					storeCellCapacity[storeCell] = new(nextThing, innerInteractableThingOwner.GetCountCanAccept(nextThing));
 
-					Log.Message($"New haulDestination for unstackable {nextThing} = {haulDestination}");
+					Log.Message($"{pawn} New haulDestination for unstackable {nextThing} = {haulDestination}");
 				}
 			}
 			else
 			{
-				Log.Message($"{nextThing} can't stack with allocated cells");
+				Log.Message($"{pawn} {nextThing} can't stack with allocated cells");
 
 				if (job.targetQueueA.NullOrEmpty())
 				{
@@ -432,7 +432,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 					var capacity = CapacityAt(nextThing, nextStoreCell, map) - capacityOver;
 					storeCellCapacity[storeCell] = new(nextThing, capacity);
 
-					Log.Message($"New cell {nextStoreCell}:{capacity}, allocated extra {capacityOver}");
+					Log.Message($"{pawn} New cell {nextStoreCell}:{capacity}, allocated extra {capacityOver}");
 				}
 				else
 				{
@@ -444,19 +444,19 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
 					storeCellCapacity[storeCell] = new(nextThing, capacity);
 
-					Log.Message($"New haulDestination {nextHaulDestination}:{capacity}, allocated extra {capacityOver}");
+					Log.Message($"{pawn} New haulDestination {nextHaulDestination}:{capacity}, allocated extra {capacityOver}");
 				}
 			}
 			else
 			{
 				count -= capacityOver;
 				job.countQueue.Add(count);
-				Log.Message($"Nowhere else to store, allocated {nextThing}:{count}");
+				Log.Message($"{pawn} Nowhere else to store, allocated {nextThing}:{count}");
 				return false;
 			}
 		}
 		job.countQueue.Add(count);
-		Log.Message($"{nextThing}:{count} allocated");
+		Log.Message($"{pawn} {nextThing}:{count} allocated");
 		return true;
 	}
 

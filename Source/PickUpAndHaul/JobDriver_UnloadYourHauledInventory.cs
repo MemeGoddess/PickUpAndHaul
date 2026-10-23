@@ -88,7 +88,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 				}
 				if (!pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation) || !thing.def.EverStorable(false))
 				{
-					Log.Message($"Pawn {pawn} incapable of hauling, dropping {thing}");
+					Log.Message($"{pawn} incapable of hauling, dropping {thing}");
 					pawn.inventory.innerContainer.TryDrop(thing, ThingPlaceMode.Near, _countToDrop, out thing);
 					EndJobWith(JobCondition.Succeeded);
 				}
