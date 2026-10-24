@@ -86,43 +86,37 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 		var map = pawn.Map;
 		var designationManager = map.designationManager;
 		var currentPriority = StoreUtility.CurrentStoragePriorityOf(thing);
-		ThingOwner nonSlotGroupThingOwner = null;
+
 		StoreTarget storeTarget;
-		if (StoreUtility.TryFindBestBetterStorageFor(thing, pawn, map, currentPriority, pawn.Faction, out var targetCell, out var haulDestination, true))
-		{
-			if (haulDestination is ISlotGroupParent)
-			{
-				//since we've gone through all the effort of getting the loc, might as well use it.
-				//Don't multi-haul food to hoppers.
-				if (HaulToHopperJob(thing, targetCell, map))
-				{
-					return HaulAIUtility.HaulToStorageJob(pawn, thing, forced);
-				}
-				else
-				{
-					storeTarget = new(targetCell);
-				}
-			}
-			else if (haulDestination is Thing destinationAsThing && (nonSlotGroupThingOwner = destinationAsThing.TryGetInnerInteractableThingOwner()) != null)
-			{
-				storeTarget = new(destinationAsThing);
-			}
-			else
-			{
-				Verse.Log.Error("Don't know how to handle HaulToStorageJob for storage " + haulDestination.ToStringSafe() + ". thing=" + thing.ToStringSafe());
-				return null;
-			}
-		}
-		else
+		int capacityStoreCell;
+		if (!StoreUtility.TryFindBestBetterStorageFor(thing, pawn, map, currentPriority, pawn.Faction, out var targetCell, out var haulDestination, true))
 		{
 			JobFailReason.Is("NoEmptyPlaceLower".Translate());
 			return null;
 		}
 
-		//credit to Dingo
-		var capacityStoreCell
-			= storeTarget.container is null ? CapacityAt(thing, storeTarget.cell, map)
-			: nonSlotGroupThingOwner.GetCountCanAccept(thing);
+		ThingOwner nonSlotGroupThingOwner;
+		if (haulDestination is ISlotGroupParent)
+		{
+			//since we've gone through all the effort of getting the loc, might as well use it.
+			//Don't multi-haul food to hoppers.
+			if (HaulToHopperJob(thing, targetCell, map))
+			{
+				return HaulAIUtility.HaulToStorageJob(pawn, thing, forced);
+			}
+			storeTarget = new(targetCell);
+			capacityStoreCell = CapacityAt(thing, storeTarget.cell, map);
+		}
+		else if (haulDestination is Thing destinationAsThing && (nonSlotGroupThingOwner = destinationAsThing.TryGetInnerInteractableThingOwner()) != null)
+		{
+			storeTarget = new(destinationAsThing);
+			capacityStoreCell = nonSlotGroupThingOwner.GetCountCanAccept(thing);
+		}
+		else
+		{
+			Verse.Log.Error("Don't know how to handle HaulToStorageJob for storage " + haulDestination.ToStringSafe() + ". thing=" + thing.ToStringSafe());
+			return null;
+		}
 
 		if (capacityStoreCell == 0)
 		{
