@@ -248,38 +248,9 @@ static class HarmonyPatches
 		}
 	}
 
-	private static bool TryAddItemToInventory(bool featureGate, Pawn pawn, Thing thing, out Thing transferredThing)
-	{
-		transferredThing = null;
-		if (thing == null
-		    || !featureGate
-		    || thing.Destroyed
-		    || !Settings.AllowCorpses && thing is Corpse
-		    || thing is Pawn
-		    || pawn.IsQuestLodger()
-		   )
-		{
-			Log.Message($"{pawn} can't put {thing} into inventory, so will drop instead");
-			return false;
-		}
-
-		var count = thing.stackCount;
-		var moveCount = pawn.carryTracker.innerContainer.TryTransferToContainer(thing, pawn.inventory.innerContainer, count, out transferredThing);
-		if (moveCount == 0 || transferredThing == null)
-		{
-			Log.Message($"{pawn} failed to stash {thing} into inventory, so will drop instead");
-			return false;
-		}
-
-		Log.Message($"{pawn} stashed {thing} into inventory before starting another job");
-		pawn.HauledToInventoryComp()?.RegisterHauledItem(transferredThing);
-
-		return moveCount != count;
-	}
-
 	private static bool TryStashToInventoryOrDrop1(Pawn_CarryTracker carryTracker, IntVec3 dropLoc, ThingPlaceMode mode, out Thing resultingThing, Action<Thing, int> placedAction)
 	{
-		if (!TryAddItemToInventory(Settings.StashInsteadOfDropOnNewJob, carryTracker.pawn, carryTracker.CarriedThing, out _))
+		if (!carryTracker.pawn.TryAddItemToInventory(Settings.StashInsteadOfDropOnNewJob, carryTracker.CarriedThing, out _))
 		{
 			return carryTracker.TryDropCarriedThing(dropLoc, mode, out resultingThing, placedAction);
 		}
@@ -290,7 +261,7 @@ static class HarmonyPatches
 
 	private static bool TryStashToInventoryOrDrop2(Pawn_CarryTracker carryTracker, IntVec3 dropLoc, int count, ThingPlaceMode mode, out Thing resultingThing, Action<Thing, int> placedAction)
 	{
-		if (!TryAddItemToInventory(Settings.StashInsteadOfDropOnNewJob, carryTracker.pawn, carryTracker.CarriedThing, out _))
+		if (!carryTracker.pawn.TryAddItemToInventory(Settings.StashInsteadOfDropOnNewJob, carryTracker.CarriedThing, out _))
 		{
 			return carryTracker.TryDropCarriedThing(dropLoc, count, mode, out resultingThing, placedAction);
 		}

@@ -10,7 +10,15 @@ public class CompHauledToInventory : ThingComp
 		return takenToInventory;
 	}
 
-	public void RegisterHauledItem(Thing thing) => takenToInventory.Add(thing);
+	public void RegisterHauledItem(Thing thing)
+	{
+		if (thing.Destroyed || thing.stackCount == 0)
+		{
+			return;
+		}
+
+		takenToInventory.Add(thing);
+	}
 
 	public void UnregisterHauledItem(Thing thing)
 	{
@@ -30,8 +38,8 @@ public class CompHauledToInventory : ThingComp
 
 	private void TrimList()
 	{
-		// todo check `x.destroyed || x.stackCount == 0` ?
-		takenToInventory.RemoveWhere(x => x == null);
+		// todo check `x.destroyed` ?
+		takenToInventory.RemoveWhere(x => x == null || x.stackCount == 0);
 	}
 
 	public override void PostExposeData()
