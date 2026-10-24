@@ -67,41 +67,47 @@ static class HarmonyPatches
 		harmony.Patch(AccessTools.Method(typeof(JobGiver_Haul), nameof(JobGiver_Haul.TryGiveJob)),
 			transpiler: new(typeof(HarmonyPatches), nameof(JobGiver_Haul_TryGiveJob_Transpiler)));
 
-		var bindingFlags = BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 		var blockDropCarriedTranspiler = new HarmonyMethod(typeof(HarmonyPatches), nameof(BlockDropCarriedTranspiler));
 		foreach (var (type, methodPrefix) in knownMethodsWhichTriggerCarryDrops)
 		{
-			var prefix = $"<{methodPrefix}>";
-			foreach (var methodInfo in type.GetMethods(bindingFlags))
-			{
-				// delegate or direct method
-				if (methodInfo.IsAbstract && (methodInfo.Name == methodPrefix || methodInfo.Name.StartsWith(prefix)))
-				{
-					harmony.Patch(methodInfo, transpiler: blockDropCarriedTranspiler);
-				}
-			}
-
-			// IEnumerable support
-			foreach (var nestedType in type.GetNestedTypes(BindingFlags.NonPublic))
-			{
-				// delegate+IEnumerable support
-				foreach (var methodInfo in nestedType.GetMethods(bindingFlags))
-				{
-					if (!methodInfo.IsAbstract && methodInfo.Name.StartsWith(prefix))
-					{
-						harmony.Patch(methodInfo, transpiler: blockDropCarriedTranspiler);
-					}
-				}
-
-				var moveNextInfo = nestedType.GetMethod(nameof(IEnumerator.MoveNext), bindingFlags | BindingFlags.FlattenHierarchy);
-				if (moveNextInfo != null && !moveNextInfo.IsAbstract)
-				{
-					harmony.Patch(moveNextInfo, transpiler: blockDropCarriedTranspiler);
-				}
-			}
+			ApplyTranspilerForEnumerationMethods(harmony, type, methodPrefix, blockDropCarriedTranspiler);
 		}
 
 		Verse.Log.Message("PickUpAndHaul v1.1.2¼ welcomes you to RimWorld with pointless logspam.");
+	}
+
+
+	public static void ApplyTranspilerForEnumerationMethods(Harmony harmony, Type type, string methodPrefix, HarmonyMethod Transpiler)
+	{
+		const BindingFlags bindingFlags = BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+		var prefix = $"<{methodPrefix}>";
+		foreach (var methodInfo in type.GetMethods(bindingFlags))
+		{
+			// delegate or direct method
+			if (methodInfo.IsAbstract && (methodInfo.Name == methodPrefix || methodInfo.Name.StartsWith(prefix)))
+			{
+				harmony.Patch(methodInfo, transpiler: Transpiler);
+			}
+		}
+
+		// IEnumerable support
+		foreach (var nestedType in type.GetNestedTypes(BindingFlags.NonPublic))
+		{
+			// delegate+IEnumerable support
+			foreach (var methodInfo in nestedType.GetMethods(bindingFlags))
+			{
+				if (!methodInfo.IsAbstract && methodInfo.Name.StartsWith(prefix))
+				{
+					harmony.Patch(methodInfo, transpiler: Transpiler);
+				}
+			}
+
+			var moveNextInfo = nestedType.GetMethod(nameof(IEnumerator.MoveNext), bindingFlags | BindingFlags.FlattenHierarchy);
+			if (moveNextInfo != null && !moveNextInfo.IsAbstract)
+			{
+				harmony.Patch(moveNextInfo, transpiler: Transpiler);
+			}
+		}
 	}
 
 	private static bool Drop_Prefix(Pawn pawn, Thing thing) => !pawn.HasHauledThingInInventory(thing);
@@ -219,31 +225,18 @@ static class HarmonyPatches
 		? Color.Lerp(Color.grey, Color.red, 0.5f)
 		: Color.white;
 
-	private static readonly MethodInfo m_CarryTracker_TryDropCarriedThing1 = AccessTools.Method(typeof(Pawn_CarryTracker), nameof(Pawn_CarryTracker.TryDropCarriedThing), [
-		typeof(IntVec3), typeof(ThingPlaceMode), typeof(Thing).MakeByRefType(), typeof(Action<Thing, int>)
-	]);
-	private static readonly MethodInfo m_CarryTracker_TryDropCarriedThing2 = AccessTools.Method(typeof(Pawn_CarryTracker), nameof(Pawn_CarryTracker.TryDropCarriedThing), [
-		typeof(IntVec3), typeof(int), typeof(ThingPlaceMode), typeof(Thing).MakeByRefType(), typeof(Action<Thing, int>)
-	]);
-	private static readonly MethodInfo m_TryStashToInventoryOrDrop1 = AccessTools.Method(typeof(HarmonyPatches), nameof(TryStashToInventoryOrDrop1));
-	private static readonly MethodInfo m_TryStashToInventoryOrDrop2 = AccessTools.Method(typeof(HarmonyPatches), nameof(TryStashToInventoryOrDrop2));
-
-	private static IEnumerable<CodeInstruction> BlockDropCarriedTranspiler(IEnumerable<CodeInstruction> instructions, MethodBase original)
+	private static IEnumerable<CodeInstruction> multiMethodReplacer(IEnumerable<CodeInstruction> instructions, MethodBase original, Dictionary<MethodInfo, MethodInfo> map)
 	{
 		var foundMatch = false;
 		foreach (var instruction in instructions)
 		{
-			if (instruction.Calls(m_CarryTracker_TryDropCarriedThing1))
+			if ((instruction.opcode == OpCodes.Call || instruction.opcode == OpCodes.Callvirt)
+			    && instruction.operand is MethodInfo method
+			    && map.TryGetValue(method, out var replacement))
 			{
 				foundMatch = true;
 				instruction.opcode = OpCodes.Call;
-				instruction.operand = m_TryStashToInventoryOrDrop1;
-			}
-			else if (instruction.Calls(m_CarryTracker_TryDropCarriedThing2))
-			{
-				foundMatch = true;
-				instruction.opcode = OpCodes.Call;
-				instruction.operand = m_TryStashToInventoryOrDrop2;
+				instruction.operand = replacement;
 			}
 
 			yield return instruction;
@@ -305,4 +298,23 @@ static class HarmonyPatches
 		resultingThing = null;
 		return false;
 	}
+
+	private static readonly Dictionary<MethodInfo, MethodInfo> replaceDropWithCarry = new()
+	{
+		{
+			AccessTools.Method(typeof(Pawn_CarryTracker), nameof(Pawn_CarryTracker.TryDropCarriedThing), [
+				typeof(IntVec3), typeof(ThingPlaceMode), typeof(Thing).MakeByRefType(), typeof(Action<Thing, int>),
+			]),
+			AccessTools.Method(typeof(HarmonyPatches), nameof(TryStashToInventoryOrDrop1))
+		},
+		{
+			AccessTools.Method(typeof(Pawn_CarryTracker), nameof(Pawn_CarryTracker.TryDropCarriedThing), [
+				typeof(IntVec3), typeof(int), typeof(ThingPlaceMode), typeof(Thing).MakeByRefType(), typeof(Action<Thing, int>),
+			]),
+			AccessTools.Method(typeof(HarmonyPatches), nameof(TryStashToInventoryOrDrop2))
+		},
+	};
+
+	private static IEnumerable<CodeInstruction> BlockDropCarriedTranspiler(IEnumerable<CodeInstruction> instructions, MethodBase original)
+		=> multiMethodReplacer(instructions, original, replaceDropWithCarry);
 }
