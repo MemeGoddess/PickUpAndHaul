@@ -38,11 +38,19 @@ public class JobDriver_HaulToInventory : JobDriver
 			{
 				var actor = pawn;
 				var thing = actor.CurJob.GetTarget(TargetIndex.A).Thing;
-				if (Toils_Haul.ErrorCheckForCarry(actor, thing))
+				// Toils_Haul.ErrorCheckForCarry can terminate the job, so avoid using it, and just inline it's checks
+				if (!thing.SpawnedOrAnyParentSpawned || !thing.Spawned || thing.stackCount == 0)
 				{
 					return;
 				}
+				// debug check
+				if (pawn.jobs.curJob.count <= 0)
+				{
+					Log.Message($"{pawn} Invalid count: " + pawn.jobs.curJob.count + ", setting to 1. Job was " + pawn.jobs.curJob);
+					job.count = 1;
+				}
 
+				// todo the pickup count should be based on free-space not the job count which is only vaguely related to inventory size
 				//get max we can pick up
 				var countToPickUp = Mathf.Min(job.count, MassUtility.CountToPickUpUntilOverEncumbered(actor, thing));
 				if (ModCompatibilityCheck.CombatExtendedIsActive)
