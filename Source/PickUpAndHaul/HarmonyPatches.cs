@@ -248,11 +248,11 @@ static class HarmonyPatches
 		}
 	}
 
-	private static bool TryAddItemToInventory(Pawn pawn, Thing thing, out Thing transferredThing)
+	private static bool TryAddItemToInventory(bool featureGate, Pawn pawn, Thing thing, out Thing transferredThing)
 	{
 		transferredThing = null;
 		if (thing == null
-		    || Settings.StashInsteadOfDropOnNewJob
+		    || !featureGate
 		    || thing.Destroyed
 		    || !Settings.AllowCorpses && thing is Corpse
 		    || thing is Pawn
@@ -279,7 +279,7 @@ static class HarmonyPatches
 
 	private static bool TryStashToInventoryOrDrop1(Pawn_CarryTracker carryTracker, IntVec3 dropLoc, ThingPlaceMode mode, out Thing resultingThing, Action<Thing, int> placedAction)
 	{
-		if (!TryAddItemToInventory(carryTracker.pawn, carryTracker.CarriedThing, out _))
+		if (!TryAddItemToInventory(Settings.StashInsteadOfDropOnNewJob, carryTracker.pawn, carryTracker.CarriedThing, out _))
 		{
 			return carryTracker.TryDropCarriedThing(dropLoc, mode, out resultingThing, placedAction);
 		}
@@ -290,7 +290,7 @@ static class HarmonyPatches
 
 	private static bool TryStashToInventoryOrDrop2(Pawn_CarryTracker carryTracker, IntVec3 dropLoc, int count, ThingPlaceMode mode, out Thing resultingThing, Action<Thing, int> placedAction)
 	{
-		if (!TryAddItemToInventory(carryTracker.pawn, carryTracker.CarriedThing, out _))
+		if (!TryAddItemToInventory(Settings.StashInsteadOfDropOnNewJob, carryTracker.pawn, carryTracker.CarriedThing, out _))
 		{
 			return carryTracker.TryDropCarriedThing(dropLoc, count, mode, out resultingThing, placedAction);
 		}
