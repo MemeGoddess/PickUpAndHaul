@@ -225,7 +225,9 @@ static class HarmonyPatches
 		? Color.Lerp(Color.grey, Color.red, 0.5f)
 		: Color.white;
 
-	private static IEnumerable<CodeInstruction> multiMethodReplacer(IEnumerable<CodeInstruction> instructions, MethodBase original, Dictionary<MethodInfo, MethodInfo> map)
+	private delegate IEnumerable<CodeInstruction> OnMethodPatchCallSite(CodeInstruction instruction, MethodInfo originalCalledMethod, MethodBase original);
+
+	private static IEnumerable<CodeInstruction> multiMethodReplacer(IEnumerable<CodeInstruction> instructions, MethodBase original, string patchName, Dictionary<MethodInfo, MethodInfo> map, OnMethodPatchCallSite OnPatchCallSite = null)
 	{
 		var foundMatch = false;
 		foreach (var instruction in instructions)
@@ -237,6 +239,14 @@ static class HarmonyPatches
 				foundMatch = true;
 				instruction.opcode = OpCodes.Call;
 				instruction.operand = replacement;
+				if (OnPatchCallSite != null)
+				{
+					foreach (var i in OnPatchCallSite(instruction, method, original))
+					{
+						yield return i;
+					}
+					continue;
+				}
 			}
 
 			yield return instruction;
@@ -244,7 +254,7 @@ static class HarmonyPatches
 
 		if (foundMatch)
 		{
-			Log.Message($"Patched {original.DeclaringType}.{original.Name} for calling TryDropCarriedThing");
+			Log.Message($"Patched {original.DeclaringType}:{original.Name} for calling {patchName}");
 		}
 	}
 
@@ -287,5 +297,5 @@ static class HarmonyPatches
 	};
 
 	private static IEnumerable<CodeInstruction> StashInventoryOnDropTranspiler(IEnumerable<CodeInstruction> instructions, MethodBase original)
-		=> multiMethodReplacer(instructions, original, StashInventoryOnDrop);
+		=> multiMethodReplacer(instructions, original, nameof(Pawn_CarryTracker.TryDropCarriedThing), StashInventoryOnDrop);
 }
