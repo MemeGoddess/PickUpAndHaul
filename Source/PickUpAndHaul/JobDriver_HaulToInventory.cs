@@ -8,18 +8,19 @@ public class JobDriver_HaulToInventory : JobDriver
 		Log.Message($"{pawn} starting HaulToInventory job: {job.targetQueueA.ToStringSafeEnumerable()}:{job.countQueue.ToStringSafeEnumerable()}");
 		pawn.ReserveAsManyAsPossible(job.targetQueueA, job);
 		pawn.ReserveAsManyAsPossible(job.targetQueueB, job);
-		return pawn.Reserve(job.targetQueueA[0], job) && pawn.Reserve(job.targetB, job);
+		return true;
 	}
 
 	//get next, goto, take, check for more. Branches off to "all over the place"
 	public override IEnumerable<Toil> MakeNewToils()
 	{
-		var takenToInventory = pawn.TryGetComp<CompHauledToInventory>();
+		var takenToInventory = pawn.HauledToInventoryComp();
 
 		var wait = Toils_General.Wait(2);
 
-		var nextTarget = Toils_JobTransforms.ExtractNextTargetFromQueue(TargetIndex.A); //also does count
-		yield return nextTarget;
+		var pruneQueue = Toils_JobTransforms.ClearDespawnedNullOrForbiddenQueuedTargets(TargetIndex.A);
+		yield return pruneQueue;
+		yield return Toils_JobTransforms.ExtractNextTargetFromQueue(TargetIndex.A); //also does count
 
 		yield return CheckForOverencumberedForCombatExtended();
 
@@ -37,63 +38,73 @@ public class JobDriver_HaulToInventory : JobDriver
 			{
 				var actor = pawn;
 				var thing = actor.CurJob.GetTarget(TargetIndex.A).Thing;
-				Toils_Haul.ErrorCheckForCarry(actor, thing);
+				// Toils_Haul.ErrorCheckForCarry can terminate the job, so avoid using it, and just inline it's checks
+				if (!thing.SpawnedOrAnyParentSpawned || !thing.Spawned || thing.stackCount == 0)
+				{
+					return;
+				}
+				// debug check
+				if (pawn.jobs.curJob.count <= 0)
+				{
+					Log.Message($"{pawn} Invalid count: " + pawn.jobs.curJob.count + ", setting to 1. Job was " + pawn.jobs.curJob);
+					job.count = 1;
+				}
 
+				// todo the pickup count should be based on free-space not the job count which is only vaguely related to inventory size
 				//get max we can pick up
 				var countToPickUp = Mathf.Min(job.count, MassUtility.CountToPickUpUntilOverEncumbered(actor, thing));
-				Log.Message($"{actor} is hauling to inventory {thing}:{countToPickUp}");
-
 				if (ModCompatibilityCheck.CombatExtendedIsActive)
 				{
 					countToPickUp = CompatHelper.CanFitInInventory(pawn, thing);
 				}
-
-				if (countToPickUp > 0)
+				if (countToPickUp <= 0)
 				{
-					var splitThing = thing.SplitOff(countToPickUp);
-					var shouldMerge = takenToInventory.GetHashSet().Any(x => x.def == thing.def);
-					actor.inventory.GetDirectlyHeldThings().TryAdd(splitThing, shouldMerge);
-					takenToInventory.RegisterHauledItem(splitThing);
+					return;
+				}
+				Log.Message($"{actor} is hauling to inventory {thing}:{countToPickUp}");
 
-					if (ModCompatibilityCheck.CombatExtendedIsActive)
-					{
-						CompatHelper.UpdateInventory(pawn);
-					}
+				var splitThing = thing.SplitOff(countToPickUp);
+				var shouldMerge = takenToInventory.GetHashSet().Any(x => x.def == thing.def);
+				actor.inventory.GetDirectlyHeldThings().TryAdd(splitThing, shouldMerge);
+				takenToInventory.RegisterHauledItem(splitThing);
+
+				if (ModCompatibilityCheck.CombatExtendedIsActive)
+				{
+					CompatHelper.UpdateInventory(pawn);
 				}
 
-				//thing still remains, so queue up hauling if we can + end the current job (smooth/instant transition)
-				//This will technically release the reservations in the queue, but what can you do
+				//thing still remains, so manipulate the queue to make it the next thing to try picking up
 				if (thing.Spawned)
 				{
-					var haul = HaulAIUtility.HaulToStorageJob(actor, thing, actor.CurJob.playerForced);
-					if (haul?.TryMakePreToilReservations(actor, false) ?? false)
-					{
-						actor.jobs.jobQueue.EnqueueFirst(haul, JobTag.Misc);
-					}
-					actor.jobs.curDriver.JumpToToil(wait);
+					Log.Message($"{pawn} picked up {countToPickUp} but {thing.stackCount} remains");
+					job.GetTargetQueue(TargetIndex.A).Insert(0, thing);
+					job.countQueue.Insert(0, thing.stackCount);
 				}
 			}
 		};
 		yield return takeThing;
-		yield return Toils_Jump.JumpIf(nextTarget, () => !job.targetQueueA.NullOrEmpty());
+		yield return Toils_Jump.JumpIf(pruneQueue, () => !job.targetQueueA.NullOrEmpty());
 
 		//Find more to haul, in case things spawned while this was in progess
 		yield return new Toil
 		{
 			initAction = () =>
 			{
-				var haulables = TempListForThings;
-				haulables.Clear();
-				haulables.AddRange(pawn.Map.listerHaulables.ThingsPotentiallyNeedingHauling());
-				var haulMoreWork = DefDatabase<WorkGiverDef>.AllDefsListForReading.First(wg => wg.Worker is WorkGiver_HaulToInventory).Worker as WorkGiver_HaulToInventory;
+				var haulables = WorkGiver_HaulToInventory.SortedHaulables(pawn);
+
 				Job haulMoreJob = null;
 				var haulMoreThing = WorkGiver_HaulToInventory.GetClosestAndRemove(pawn.Position, pawn.Map, haulables, PathEndMode.ClosestTouch,
-					   TraverseParms.For(pawn), 12, t => (haulMoreJob = haulMoreWork.JobOnThing(pawn, t)) != null);
+					   TraverseParms.For(pawn), 12, t => (haulMoreJob = WorkGiverDefs.HaulToInventoryWorker.JobOnThing(pawn, t)) != null);
 
 				//WorkGiver_HaulToInventory found more work nearby
 				if (haulMoreThing != null)
 				{
-					Log.Message($"{pawn} hauling again : {haulMoreThing}");
+					Log.Message($"{pawn} hauling again : {haulMoreThing}:{haulMoreThing.stackCount}");
+					if (haulMoreJob == null)
+					{
+						Verse.Log.Error($"Returned an thing to haul but haul job is missing");
+						return;
+					}
 					if (haulMoreJob.TryMakePreToilReservations(pawn, false))
 					{
 						pawn.jobs.jobQueue.EnqueueFirst(haulMoreJob, JobTag.Misc);
@@ -117,7 +128,7 @@ public class JobDriver_HaulToInventory : JobDriver
 				var curJob = actor.jobs.curJob;
 				var storeCell = curJob.targetB;
 
-				var unloadJob = JobMaker.MakeJob(PickUpAndHaulJobDefOf.UnloadYourHauledInventory, storeCell);
+				var unloadJob = JobMaker.MakeJob(JobDefOfs.UnloadYourHauledInventory, storeCell);
 				if (unloadJob.TryMakePreToilReservations(actor, false))
 				{
 					actor.jobs.jobQueue.EnqueueFirst(unloadJob, JobTag.Misc);
@@ -128,8 +139,6 @@ public class JobDriver_HaulToInventory : JobDriver
 		};
 		yield return wait;
 	}
-
-	private static List<Thing> TempListForThings { get; } = new();
 
 	/// <summary>
 	/// the workgiver checks for encumbered, this is purely extra for CE

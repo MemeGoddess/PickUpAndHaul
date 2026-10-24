@@ -4,7 +4,7 @@
 		<RootNamespace>PickUpAndHaul</RootNamespace>
 		<AssemblyName>PickUpAndHaul</AssemblyName>
 		<TargetFramework>net48</TargetFramework>
-		<LangVersion>10.0</LangVersion>
+		<LangVersion>latest</LangVersion>
 		<PlatformTarget>AnyCPU</PlatformTarget>
 		<Optimize>true</Optimize>
 		<DebugType>none</DebugType>
