@@ -73,6 +73,9 @@ static class HarmonyPatches
 			ApplyTranspilerForEnumerationMethods(harmony, type, methodPrefix, stashInventoryOnDropTranspiler);
 		}
 
+		var placeItemInInventory = new HarmonyMethod(typeof(HarmonyPatches), nameof(StashInventoryOnHarvestTranspiler));
+		ApplyTranspilerForEnumerationMethods(harmony, typeof(JobDriver_PlantWork), nameof(JobDriver_PlantWork.MakeNewToils), placeItemInInventory);
+
 		Verse.Log.Message("PickUpAndHaul v1.1.2¼ welcomes you to RimWorld with pointless logspam.");
 	}
 
@@ -225,7 +228,7 @@ static class HarmonyPatches
 		? Color.Lerp(Color.grey, Color.red, 0.5f)
 		: Color.white;
 
-	private delegate IEnumerable<CodeInstruction> OnMethodPatchCallSite(CodeInstruction instruction, MethodInfo originalCalledMethod, MethodBase original);
+	private delegate IEnumerable<CodeInstruction> OnMethodPatchCallSite(CodeInstruction instruction, MethodInfo replacementMethod, MethodBase original);
 
 	private static IEnumerable<CodeInstruction> multiMethodReplacer(IEnumerable<CodeInstruction> instructions, MethodBase original, string patchName, Dictionary<MethodInfo, MethodInfo> map, OnMethodPatchCallSite OnPatchCallSite = null)
 	{
@@ -237,16 +240,16 @@ static class HarmonyPatches
 			    && map.TryGetValue(method, out var replacement))
 			{
 				foundMatch = true;
-				instruction.opcode = OpCodes.Call;
-				instruction.operand = replacement;
 				if (OnPatchCallSite != null)
 				{
-					foreach (var i in OnPatchCallSite(instruction, method, original))
+					foreach (var i in OnPatchCallSite(instruction, replacement, original))
 					{
 						yield return i;
 					}
 					continue;
 				}
+				instruction.opcode = OpCodes.Call;
+				instruction.operand = replacement;
 			}
 
 			yield return instruction;
@@ -298,4 +301,88 @@ static class HarmonyPatches
 
 	private static IEnumerable<CodeInstruction> StashInventoryOnDropTranspiler(IEnumerable<CodeInstruction> instructions, MethodBase original)
 		=> multiMethodReplacer(instructions, original, nameof(Pawn_CarryTracker.TryDropCarriedThing), StashInventoryOnDrop);
+
+	private static readonly Dictionary<MethodInfo, MethodInfo> StashInventoryOnHarvest = new()
+	{
+		{
+			AccessTools.Method(typeof(GenPlace), nameof(GenPlace.TryPlaceThing), [
+				typeof(Thing), typeof(IntVec3), typeof(Map), typeof(ThingPlaceMode), typeof(Action<Thing, int>), typeof(Predicate<IntVec3>), typeof(Rot4), typeof(int)
+			]),
+			AccessTools.Method(typeof(HarmonyPatches), nameof(GenPlace_TryPlaceThing1))
+		},
+		{
+			AccessTools.Method(typeof(GenPlace), nameof(GenPlace.TryPlaceThing), [
+				typeof(Thing), typeof(IntVec3), typeof(Map), typeof(ThingPlaceMode), typeof(Thing).MakeByRefType(), typeof(Action<Thing, int>), typeof(Predicate<IntVec3>), typeof(Rot4), typeof(int)
+			]),
+			AccessTools.Method(typeof(HarmonyPatches), nameof(GenPlace_TryPlaceThing2))
+		},
+	};
+
+	private static bool GenPlace_TryPlaceThing1(Thing thing,
+		IntVec3 center,
+		Map map,
+		ThingPlaceMode mode,
+		Action<Thing, int> placedAction,
+		Predicate<IntVec3> extraValidator,
+		Rot4? rot,
+		int squareRadius,
+		Pawn pawn // this parameter must be last to simplify IL patching
+		)
+	{
+		if (pawn == null || !pawn.TryAddItemToInventory(Settings.StashOnHarvest, thing, out _))
+		{
+			return GenPlace.TryPlaceThing(thing, center, map, mode, placedAction, extraValidator, rot, squareRadius);
+		}
+
+		return false;
+	}
+
+	private static bool GenPlace_TryPlaceThing2(
+		Thing thing,
+		IntVec3 center,
+		Map map,
+		ThingPlaceMode mode,
+		out Thing lastResultingThing,
+		Action<Thing, int> placedAction,
+		Predicate<IntVec3> extraValidator,
+		Rot4? rot,
+		int squareRadius,
+		Pawn pawn // this parameter must be last to simplify IL patching
+		)
+	{
+		if (pawn == null || !pawn.TryAddItemToInventory(Settings.StashOnHarvest, thing, out _))
+		{
+			return GenPlace.TryPlaceThing(thing, center, map, mode, out lastResultingThing, placedAction, extraValidator, rot, squareRadius);
+		}
+
+		lastResultingThing = null;
+		return false;
+	}
+
+
+	private static IEnumerable<CodeInstruction> StashHarvestPatcher(CodeInstruction instruction, MethodInfo replacementMethod, MethodBase original)
+	{
+		// direct method, not an IEnumerable
+		if (original.DeclaringType?.IsSubclassOf(typeof(JobDriver)) ?? false)
+		{
+			yield return FishTranspiler.LoadField(typeof(JobDriver), nameof(JobDriver.pawn));
+			yield return FishTranspiler.Call(replacementMethod);
+			yield break;
+		}
+
+		var variables = original.GetMethodBody()?.LocalVariables;
+		if (variables == null || variables.Count == 0 || variables[0].LocalType != typeof(Pawn))
+		{
+			Verse.Log.Error($"{original.DeclaringType}:{original} method is not on a subclass of {typeof(JobDriver)} or the 1st local variable is not a {typeof(Pawn)}");
+			yield return instruction;
+			yield break;
+		}
+
+		yield return FishTranspiler.LoadLocal(0);
+		yield return FishTranspiler.Call(replacementMethod);
+	}
+
+	private static IEnumerable<CodeInstruction> StashInventoryOnHarvestTranspiler(IEnumerable<CodeInstruction> instructions, MethodBase original)
+		=> multiMethodReplacer(instructions, original, nameof(GenPlace.TryPlaceThing), StashInventoryOnHarvest, StashHarvestPatcher);
+
 }
