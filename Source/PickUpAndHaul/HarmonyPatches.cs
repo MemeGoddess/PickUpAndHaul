@@ -67,10 +67,10 @@ static class HarmonyPatches
 		harmony.Patch(AccessTools.Method(typeof(JobGiver_Haul), nameof(JobGiver_Haul.TryGiveJob)),
 			transpiler: new(typeof(HarmonyPatches), nameof(JobGiver_Haul_TryGiveJob_Transpiler)));
 
-		var blockDropCarriedTranspiler = new HarmonyMethod(typeof(HarmonyPatches), nameof(BlockDropCarriedTranspiler));
+		var stashInventoryOnDropTranspiler = new HarmonyMethod(typeof(HarmonyPatches), nameof(StashInventoryOnDropTranspiler));
 		foreach (var (type, methodPrefix) in knownMethodsWhichTriggerCarryDrops)
 		{
-			ApplyTranspilerForEnumerationMethods(harmony, type, methodPrefix, blockDropCarriedTranspiler);
+			ApplyTranspilerForEnumerationMethods(harmony, type, methodPrefix, stashInventoryOnDropTranspiler);
 		}
 
 		Verse.Log.Message("PickUpAndHaul v1.1.2¼ welcomes you to RimWorld with pointless logspam.");
@@ -299,7 +299,7 @@ static class HarmonyPatches
 		return false;
 	}
 
-	private static readonly Dictionary<MethodInfo, MethodInfo> replaceDropWithCarry = new()
+	private static readonly Dictionary<MethodInfo, MethodInfo> StashInventoryOnDrop = new()
 	{
 		{
 			AccessTools.Method(typeof(Pawn_CarryTracker), nameof(Pawn_CarryTracker.TryDropCarriedThing), [
@@ -315,6 +315,6 @@ static class HarmonyPatches
 		},
 	};
 
-	private static IEnumerable<CodeInstruction> BlockDropCarriedTranspiler(IEnumerable<CodeInstruction> instructions, MethodBase original)
-		=> multiMethodReplacer(instructions, original, replaceDropWithCarry);
+	private static IEnumerable<CodeInstruction> StashInventoryOnDropTranspiler(IEnumerable<CodeInstruction> instructions, MethodBase original)
+		=> multiMethodReplacer(instructions, original, StashInventoryOnDrop);
 }
