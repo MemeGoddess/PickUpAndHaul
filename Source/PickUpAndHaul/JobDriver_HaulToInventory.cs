@@ -77,8 +77,8 @@ public class JobDriver_HaulToInventory : JobDriver
 				if (thing.Spawned)
 				{
 					Log.Message($"{pawn} picked up {countToPickUp} but {thing.stackCount} remains");
-					job.count += 1;
 					job.GetTargetQueue(TargetIndex.A).Insert(0, thing);
+					job.countQueue.Insert(0, thing.stackCount);
 				}
 			}
 		};
