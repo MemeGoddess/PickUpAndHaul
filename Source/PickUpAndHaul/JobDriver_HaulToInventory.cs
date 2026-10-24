@@ -6,9 +6,25 @@ public class JobDriver_HaulToInventory : JobDriver
 	public override bool TryMakePreToilReservations(bool errorOnFailed)
 	{
 		Log.Message($"{pawn} starting HaulToInventory job: {job.targetQueueA.ToStringSafeEnumerable()}:{job.countQueue.ToStringSafeEnumerable()}");
-		pawn.ReserveAsManyAsPossible(job.targetQueueA, job);
-		pawn.ReserveAsManyAsPossible(job.targetQueueB, job);
-		return pawn.Reserve(job.targetQueueA[0], job) && pawn.Reserve(job.targetB, job);
+		var hasSourceReservation = false;
+		var hasDestReservation = false;
+		var reservationManager = pawn.Map.reservationManager;
+		foreach (var target in job.targetQueueA)
+		{
+			if (reservationManager.Reserve(pawn, job, target))
+			{
+				hasSourceReservation = true;
+			}
+		}
+		foreach (var target in job.targetQueueB)
+		{
+			if (reservationManager.Reserve(pawn, job, target))
+			{
+				hasDestReservation = true;
+			}
+		}
+
+		return hasSourceReservation && hasDestReservation;
 	}
 
 	//get next, goto, take, check for more. Branches off to "all over the place"
