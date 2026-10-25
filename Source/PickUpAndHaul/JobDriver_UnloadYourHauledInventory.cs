@@ -90,7 +90,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 				}
 				if (!pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation) || !thing.def.EverStorable(false))
 				{
-					Log.Message($"{pawn} incapable of hauling, dropping {thing}");
+					Log.Message($"{pawn} incapable of hauling, dropping {thing}:{thing.stackCount}");
 					pawn.inventory.innerContainer.TryDrop(thing, ThingPlaceMode.Near, _countToDrop, out thing);
 				}
 				else
@@ -141,11 +141,11 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 						job.SetTarget(TargetIndex.B, cell);
 					}
 
-					Log.Message($"{pawn} found destination {job.targetB} for thing {unloadableThing.Thing}");
+					Log.Message($"{pawn} found destination {job.targetB} for thing {unloadableThing.Thing}:{unloadableThing.count}");
 					if (!pawn.Map.reservationManager.Reserve(pawn, job, job.targetB, errorOnFailed: false))
 					{
 						Log.Message(
-							$"{pawn} failed reserving destination {job.targetB}, dropping {unloadableThing.Thing}");
+							$"{pawn} failed reserving destination {job.targetB}, dropping {unloadableThing.Thing}:{unloadableThing.count}");
 						pawn.inventory.innerContainer.TryDrop(unloadableThing.Thing, ThingPlaceMode.Near,
 							unloadableThing.count, out _);
 						return;
@@ -154,7 +154,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 					return;
 				}
 
-				Log.Message($"{pawn} unable to find hauling destination, dropping {unloadableThing.Thing}");
+				Log.Message($"{pawn} unable to find hauling destination, dropping {unloadableThing.Thing}:{unloadableThing.count}");
 				pawn.inventory.innerContainer.TryDrop(unloadableThing.Thing, ThingPlaceMode.Near, unloadableThing.count, out _);
 			}
 		};

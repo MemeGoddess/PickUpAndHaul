@@ -99,7 +99,7 @@ public static class InventoryUtilities
 				CompatHelper.UpdateInventory(pawn);
 			}
 
-			Log.Message($"{pawn} stash {thing}:{remainingToPickup} into inventory");
+			Log.Message($"{pawn} stash {thing}:{countToPickUp} into inventory");
 
 			return true;
 		}

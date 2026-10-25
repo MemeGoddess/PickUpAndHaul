@@ -333,7 +333,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
 					storeCellCapacity[storeCell] = new(nextThing, CapacityAt(nextThing, nextStoreCell, map));
 
-					Log.Message($"{pawn} New cell for unstackable {nextThing} = {nextStoreCell}");
+					Log.Message($"{pawn} New cell for {nextThing} = {nextStoreCell}");
 				}
 				else
 				{
@@ -343,7 +343,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
 					storeCellCapacity[storeCell] = new(nextThing, innerInteractableThingOwner.GetCountCanAccept(nextThing));
 
-					Log.Message($"{pawn} New haulDestination for unstackable {nextThing} = {haulDestination}");
+					Log.Message($"{pawn} New haulDestination for {nextThing} = {haulDestination}");
 				}
 			}
 			else
