@@ -372,7 +372,7 @@ static class HarmonyPatches
 			return GenPlace.TryPlaceThing(thing, center, map, mode, placedAction, extraValidator, rot, squareRadius);
 		}
 
-		return false;
+		return true;
 	}
 
 	private static bool GenPlace_TryPlaceThing2(
@@ -388,13 +388,12 @@ static class HarmonyPatches
 		Pawn pawn // this parameter must be last to simplify IL patching
 		)
 	{
-		if (pawn == null || !pawn.TryAddItemToInventory(thing, out _))
+		if (pawn == null || !pawn.TryAddItemToInventory(thing, out lastResultingThing))
 		{
 			return GenPlace.TryPlaceThing(thing, center, map, mode, out lastResultingThing, placedAction, extraValidator, rot, squareRadius);
 		}
 
-		lastResultingThing = null;
-		return false;
+		return true;
 	}
 
 
