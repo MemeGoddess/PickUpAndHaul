@@ -142,7 +142,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 					}
 
 					Log.Message($"{pawn} found destination {job.targetB} for thing {unloadableThing.Thing}");
-					if (!pawn.Map.reservationManager.Reserve(pawn, job, job.targetB))
+					if (!pawn.Map.reservationManager.Reserve(pawn, job, job.targetB, errorOnFailed: false))
 					{
 						Log.Message(
 							$"{pawn} failed reserving destination {job.targetB}, dropping {unloadableThing.Thing}");
