@@ -130,7 +130,7 @@ static class HarmonyPatches
 		foreach (var methodInfo in type.GetMethods(bindingFlags))
 		{
 			// delegate or direct method
-			if (methodInfo.IsAbstract && (methodInfo.Name == methodPrefix || methodInfo.Name.StartsWith(prefix)))
+			if (!methodInfo.IsAbstract && (methodInfo.Name == methodPrefix || methodInfo.Name.StartsWith(prefix)))
 			{
 				harmony.Patch(methodInfo, transpiler: Transpiler);
 			}
