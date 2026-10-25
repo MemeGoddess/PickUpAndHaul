@@ -53,7 +53,7 @@ public static class PawnUnloadChecker
 
 		if (Find.TickManager.TicksGame % 50 == 0 && pawn.inventory.innerContainer.Count < itemsTakenToInventory.GetHashSet().Count)
 		{
-			Verse.Log.Warning("[PickUpAndHaul] " + pawn + " inventory was found out of sync with haul index. Pawn will drop their inventory.");
+			Verse.Log.Warning($"[PickUpAndHaul] {pawn} inventory was found out of sync with haul index. Pawn will drop their inventory.");
 			itemsTakenToInventory.Clear();
 			pawn.inventory.UnloadEverything = true;
 		}
