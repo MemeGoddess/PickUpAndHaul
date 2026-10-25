@@ -92,7 +92,6 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 				{
 					Log.Message($"{pawn} incapable of hauling, dropping {thing}");
 					pawn.inventory.innerContainer.TryDrop(thing, ThingPlaceMode.Near, _countToDrop, out thing);
-					EndJobWith(JobCondition.Succeeded);
 				}
 				else
 				{
@@ -151,7 +150,6 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 							$"{pawn} failed reserving destination {job.targetB}, dropping {unloadableThing.Thing}");
 						pawn.inventory.innerContainer.TryDrop(unloadableThing.Thing, ThingPlaceMode.Near,
 							unloadableThing.Thing.stackCount, out _);
-						EndJobWith(JobCondition.Incompletable);
 						return;
 					}
 					_countToDrop = unloadableThing.Thing.stackCount;
@@ -162,7 +160,6 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 						$"Pawn {pawn} unable to find hauling destination, dropping {unloadableThing.Thing}");
 					pawn.inventory.innerContainer.TryDrop(unloadableThing.Thing, ThingPlaceMode.Near,
 						unloadableThing.Thing.stackCount, out _);
-					EndJobWith(JobCondition.Succeeded);
 				}
 			}
 		};
