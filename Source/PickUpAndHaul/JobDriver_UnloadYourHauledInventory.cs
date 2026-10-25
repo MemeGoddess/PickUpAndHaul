@@ -231,23 +231,11 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 						candidates.Add((candidate, cell, haulDestination));
 					}
 				}
-				else if (cell != IntVec3.Invalid)
+				else if (haulDestination is Thing || cell != IntVec3.Invalid)
 				{
-					if (reservations.CanReserve(pawn, cell, 1, candidate.stackCount))
-					{
-						isInvalid = false;
-						noStorageFree = false;
-						candidates.Add((candidate, cell, haulDestination));
-					}
-				}
-				else if (haulDestination is Thing haulThing)
-				{
-					if (reservations.CanReserve(pawn, haulThing, 1, candidate.stackCount))
-					{
-						isInvalid = false;
-						noStorageFree = false;
-						candidates.Add((candidate, cell, haulDestination));
-					}
+					isInvalid = false;
+					noStorageFree = false;
+					candidates.Add((candidate, cell, haulDestination));
 				}
 			}
 
