@@ -154,7 +154,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 					return;
 				}
 
-				Log.Message($"Pawn {pawn} unable to find hauling destination, dropping {unloadableThing.Thing}");
+				Log.Message($"{pawn} unable to find hauling destination, dropping {unloadableThing.Thing}");
 				pawn.inventory.innerContainer.TryDrop(unloadableThing.Thing, ThingPlaceMode.Near, unloadableThing.count, out _);
 			}
 		};
