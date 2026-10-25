@@ -268,17 +268,17 @@ static class HarmonyPatches
 					yield return FishTranspiler.IfFalse(skipInventoryStashCheck);
 				}
 
-				var replace = false;
+				var doReplacement = true;
 				if (OnPatchCallSite != null)
 				{
 					foreach (var i in OnPatchCallSite(instruction, replacement, original))
 					{
-						replace = true;
+						doReplacement = false;
 						yield return i;
 					}
 				}
 
-				if (!replace)
+				if (doReplacement)
 				{
 					yield return FishTranspiler.Call(replacement);
 				}
@@ -289,8 +289,9 @@ static class HarmonyPatches
 					yield return new CodeInstruction(OpCodes.Br_S, doneInventoryStashCheck);
 					yield return instruction.WithLabels(skipInventoryStashCheck);
 					yield return new CodeInstruction(OpCodes.Nop).WithLabels(doneInventoryStashCheck);
-					continue;
 				}
+
+				continue;
 			}
 
 			yield return instruction;
