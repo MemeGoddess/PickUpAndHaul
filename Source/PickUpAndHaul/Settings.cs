@@ -52,7 +52,7 @@ public class Settings : ModSettings
 		Scribe_Values.Look(ref _allowAnimals, "allowAnimals", true);
 		Scribe_Values.Look(ref _allowMechanoids, "allowMechanoids", true);
 		Scribe_Values.Look(ref _stashInsteadOfDropOnNewJob, "stashInsteadOfDropOnNewJob", true);
-		Scribe_Values.Look(ref _stashOnHarvest, "_stashOnHarvest", false);
+		Scribe_Values.Look(ref _stashOnHarvest, "stashOnHarvest", false);
 		Scribe_Values.Look(ref _maximumOccupiedCapacityToConsiderHauling, "maximumOccupiedCapacityToConsiderHauling", 0.8f);
 	}
 }
