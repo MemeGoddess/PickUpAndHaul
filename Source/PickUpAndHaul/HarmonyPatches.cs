@@ -11,8 +11,6 @@ static class HarmonyPatches
 	private static readonly PropertyInfo p_StashInsteadOfDropOnNewJob = AccessTools.Property(typeof(Settings), nameof(Settings.StashInsteadOfDropOnNewJob));
 	private static readonly PropertyInfo p_StashOnHarvest = AccessTools.Property(typeof(Settings), nameof(Settings.StashOnHarvest));
 	private static readonly PropertyInfo p_StashOnRecipeFinish = AccessTools.Property(typeof(Settings), nameof(Settings.StashOnRecipeFinish));
-	// Used in the ApplyTranspilerForEnumerationMethods => multiMethodReplacer call chain to bake the feature flag fetch into the IL
-	private static PropertyInfo CurrentFeatureFlag;
 
 	public static readonly List<(Type, string, PropertyInfo)> knownMethodsWhichTriggerCarryDrops =
 	[
@@ -91,15 +89,13 @@ static class HarmonyPatches
 		var stashInventoryOnDropTranspiler = new HarmonyMethod(typeof(HarmonyPatches), nameof(StashToInventoryOnDropTranspiler));
 		foreach (var (type, methodPrefix, featureFlag) in knownMethodsWhichTriggerCarryDrops)
 		{
-			CurrentFeatureFlag = featureFlag;
-			ApplyTranspilerForEnumerationMethods(harmony, type, methodPrefix, stashInventoryOnDropTranspiler);
+			ApplyTranspilerForEnumerationMethods(harmony, type, methodPrefix, stashInventoryOnDropTranspiler, featureFlag);
 		}
 
 		var placeItemInInventoryTranspiler = new HarmonyMethod(typeof(HarmonyPatches), nameof(StashInventoryOnPlaceTranspiler));
 		foreach (var (type, methodPrefix, featureFlag) in knownMethodsWhichTriggerTryPlaceThing)
 		{
-			CurrentFeatureFlag = featureFlag;
-			ApplyTranspilerForEnumerationMethods(harmony, type, methodPrefix, placeItemInInventoryTranspiler);
+			ApplyTranspilerForEnumerationMethods(harmony, type, methodPrefix, placeItemInInventoryTranspiler, featureFlag);
 		}
 
 		Verse.Log.Message("PickUpAndHaul v1.1.2¼ welcomes you to RimWorld with pointless logspam.");
@@ -118,13 +114,20 @@ static class HarmonyPatches
 	{
 		if (__result && __state != null && Settings.StashInsteadOfDropOnNewJob)
 		{
-			Log.Message($"{__instance.pawn} dropped {__state}");
+			Log.Message($"[PickUpAndHaul] {__instance.pawn} dropped {__state}");
 		}
 	}
 #endif
 
-	public static void ApplyTranspilerForEnumerationMethods(Harmony harmony, Type type, string methodPrefix, HarmonyMethod Transpiler)
+	// Used in the ApplyTranspilerForEnumerationMethods => multiMethodReplacer call chain to bake the feature flag fetch into the IL
+	private static PropertyInfo CurrentFeatureFlag;
+	// Used by multiMethodReplacer to signal a patch was applied at all
+	private static bool BulkTranspilerAppliedAtOnce;
+
+	public static void ApplyTranspilerForEnumerationMethods(Harmony harmony, Type type, string methodPrefix, HarmonyMethod Transpiler, PropertyInfo featureFlag)
 	{
+		BulkTranspilerAppliedAtOnce = false;
+		CurrentFeatureFlag = featureFlag;
 		const BindingFlags bindingFlags = BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 		var prefix = $"<{methodPrefix}>";
 		foreach (var methodInfo in type.GetMethods(bindingFlags))
@@ -132,6 +135,7 @@ static class HarmonyPatches
 			// delegate or direct method
 			if (!methodInfo.IsAbstract && (methodInfo.Name == methodPrefix || methodInfo.Name.StartsWith(prefix)))
 			{
+				Log.Info($"[PickUpAndHaul] Patching {type.Name}.{methodInfo.Name}");
 				harmony.Patch(methodInfo, transpiler: Transpiler);
 			}
 		}
@@ -144,6 +148,7 @@ static class HarmonyPatches
 			{
 				if (!methodInfo.IsAbstract && methodInfo.Name.StartsWith(prefix))
 				{
+					Log.Info($"[PickUpAndHaul] Patching {type.Name}.{nestedType.Name}.{methodInfo.Name}");
 					harmony.Patch(methodInfo, transpiler: Transpiler);
 				}
 			}
@@ -151,8 +156,14 @@ static class HarmonyPatches
 			var moveNextInfo = nestedType.GetMethod(nameof(IEnumerator.MoveNext), bindingFlags | BindingFlags.FlattenHierarchy);
 			if (moveNextInfo != null && !moveNextInfo.IsAbstract)
 			{
+				Log.Info($"[PickUpAndHaul] Patching {type.Name}.{nestedType.Name}.{moveNextInfo.Name}");
 				harmony.Patch(moveNextInfo, transpiler: Transpiler);
 			}
+		}
+
+		if (!BulkTranspilerAppliedAtOnce)
+		{
+			Verse.Log.Error($"[PickUpAndHaul] Failed to patch {type}.{methodPrefix}");
 		}
 	}
 
@@ -257,7 +268,7 @@ static class HarmonyPatches
 
 		if (state != 2)
 		{
-			Verse.Log.Warning("Pick Up And Haul failed to patch ITab_Pawn_Gear.DrawThingRow. This is only used for coloring and totally harmless, but you might wanna know anyway");
+			Verse.Log.Warning("[PickUpAndHaul] Failed to patch ITab_Pawn_Gear.DrawThingRow. This is only used for coloring and totally harmless, but you might wanna know anyway");
 		}
 	}
 
@@ -324,7 +335,8 @@ static class HarmonyPatches
 
 		if (foundMatch)
 		{
-			Log.Message($"Patched {original.DeclaringType}:{original.Name} for calling {patchName}");
+			BulkTranspilerAppliedAtOnce = true;
+			Log.Message($"[PickUpAndHaul] Patched {original.DeclaringType}:{original.Name} for calling {patchName}");
 		}
 	}
 
