@@ -1,5 +1,6 @@
 ﻿using System.Linq;
 using System.Runtime.CompilerServices;
+using Unity.Mathematics;
 
 namespace PickUpAndHaul;
 
@@ -26,21 +27,28 @@ public static class InventoryUtilities
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public bool TryAddItemToInventoryForStashing(Thing thing, out Thing lastResultingThing)
+		public bool TryAddItemToInventoryForStashing(Thing thing)
 		{
-			return pawn.TryAddItemToInventory(thing, thing.stackCount, out lastResultingThing, out _);
+			return pawn.TryAddItemToInventory(thing, thing.stackCount, out _);
 		}
 
-		public bool TryAddItemToInventory(Thing thing, int pickupCount, out Thing splitThing, out bool canRetryPickup, bool tooHeavyMsg = true)
+		public bool TryAddItemToInventory(Thing thing, int pickupCount, out int remainingToPickup, bool tooHeavyMsg = true)
 		{
-			canRetryPickup = false;
-			splitThing = null;
+			remainingToPickup = 0;
+			var inventory = pawn.inventory.innerContainer;
 			if (thing == null
 			    || thing.Destroyed
-			    || !Settings.AllowCorpses && thing is Corpse
-			    || thing is Pawn
+			    || thing.stackCount == 0
+			    || thing is Pawn)
+			{
+				// skip with no message
+				return false;
+			}
+
+			if (!Settings.AllowCorpses && thing is Corpse
 			    || pawn.IsQuestLodger()
-			    || pawn.inventory.innerContainer.Count >= pawn.inventory.innerContainer.maxStacks
+			    // tryAdd can fail but absorb stack count, so verify the entire stack can fit
+			    || inventory.Count >= inventory.maxStacks
 			   )
 			{
 				Log.Message($"{pawn} can't put {thing} into inventory");
@@ -61,6 +69,7 @@ public static class InventoryUtilities
 			}
 			if (countToPickUp <= 0)
 			{
+				remainingToPickup = 0;
 				if (tooHeavyMsg)
 				{
 					Log.Message($"{pawn} can't put {thing} into inventory as it is too heavy");
@@ -70,8 +79,19 @@ public static class InventoryUtilities
 			}
 
 			var shouldMerge = comp.GetHashSet().Any(x => x.def == thing.def);
-			splitThing = thing.SplitOff(countToPickUp);
-			pawn.inventory.GetDirectlyHeldThings().TryAddOrTransfer(splitThing, shouldMerge);
+			// always use splitOff as this avoids needing to touch TryTransferToContainer which behaves very differently to TryAdd in its failure modes
+			var splitThing = thing.SplitOff(countToPickUp);
+			remainingToPickup = thing.stackCount;
+			if (!inventory.TryAdd(splitThing, shouldMerge))
+			{
+				Log.Message($"{pawn} failed to stash {thing}:{countToPickUp} into inventory");
+				// prevent retries
+				remainingToPickup = 0;
+				return false;
+			}
+
+			// on merge; splitThing.stackCount can be between 0 and countToPickUp
+			// the ThingOwner API does not permit determining where the merged stacks went
 			comp.RegisterHauledItem(splitThing);
 
 			if (ModCompatibilityCheck.CombatExtendedIsActive)
@@ -79,17 +99,9 @@ public static class InventoryUtilities
 				CompatHelper.UpdateInventory(pawn);
 			}
 
-			Log.Message($"{pawn} stash {splitThing}:{splitThing.stackCount} into inventory");
+			Log.Message($"{pawn} stash {thing}:{remainingToPickup} into inventory");
 
-			if (splitThing == thing || thing.stackCount == 0 || pickupCount == splitThing.stackCount)
-			{
-				return true;
-			}
-
-			canRetryPickup = true;
-			Log.Message($"{pawn} failed to stash {thing}:{splitThing.stackCount - pickupCount} into inventory");
-
-			return false;
+			return true;
 		}
 	}
 }

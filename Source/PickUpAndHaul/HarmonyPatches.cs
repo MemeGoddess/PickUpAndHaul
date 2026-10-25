@@ -353,24 +353,16 @@ static class HarmonyPatches
 
 	private static bool TryStashToInventoryOrDrop1(Pawn_CarryTracker carryTracker, IntVec3 dropLoc, ThingPlaceMode mode, out Thing resultingThing, Action<Thing, int> placedAction)
 	{
-		if (!carryTracker.pawn.TryAddItemToInventoryForStashing(carryTracker.CarriedThing, out _))
-		{
-			return carryTracker.TryDropCarriedThing(dropLoc, mode, out resultingThing, placedAction);
-		}
-
 		resultingThing = null;
-		return false;
+		return !carryTracker.pawn.TryAddItemToInventoryForStashing(carryTracker.CarriedThing)
+		       && carryTracker.TryDropCarriedThing(dropLoc, mode, out resultingThing, placedAction);
 	}
 
 	private static bool TryStashToInventoryOrDrop2(Pawn_CarryTracker carryTracker, IntVec3 dropLoc, int count, ThingPlaceMode mode, out Thing resultingThing, Action<Thing, int> placedAction)
 	{
-		if (!carryTracker.pawn.TryAddItemToInventoryForStashing(carryTracker.CarriedThing, out _))
-		{
-			return carryTracker.TryDropCarriedThing(dropLoc, count, mode, out resultingThing, placedAction);
-		}
-
 		resultingThing = null;
-		return false;
+		return !carryTracker.pawn.TryAddItemToInventoryForStashing(carryTracker.CarriedThing)
+		       && carryTracker.TryDropCarriedThing(dropLoc, count, mode, out resultingThing, placedAction);
 	}
 
 	private static readonly Dictionary<MethodInfo, MethodInfo> StashToInventoryOnDrop = new()
@@ -419,7 +411,7 @@ static class HarmonyPatches
 		Pawn pawn // this parameter must be last to simplify IL patching
 		)
 	{
-		if (pawn == null || !pawn.TryAddItemToInventoryForStashing(thing, out _))
+		if (pawn == null || !pawn.TryAddItemToInventoryForStashing(thing))
 		{
 			return GenPlace.TryPlaceThing(thing, center, map, mode, placedAction, extraValidator, rot, squareRadius);
 		}
@@ -440,11 +432,13 @@ static class HarmonyPatches
 		Pawn pawn // this parameter must be last to simplify IL patching
 		)
 	{
-		if (pawn == null || !pawn.TryAddItemToInventoryForStashing(thing, out lastResultingThing))
+		if (pawn == null || !pawn.TryAddItemToInventoryForStashing(thing))
 		{
 			return GenPlace.TryPlaceThing(thing, center, map, mode, out lastResultingThing, placedAction, extraValidator, rot, squareRadius);
 		}
 
+		// code calling this function depends on this outputing something
+		lastResultingThing = thing;
 		return true;
 	}
 

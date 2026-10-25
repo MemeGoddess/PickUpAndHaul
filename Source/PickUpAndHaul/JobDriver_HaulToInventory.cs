@@ -71,13 +71,13 @@ public class JobDriver_HaulToInventory : JobDriver
 					job.count = 1;
 				}
 
-				if (pawn.TryAddItemToInventory(thing, job.count, out var splitThing, out var canRetryPickup, false))
+				if (pawn.TryAddItemToInventory(thing, job.count, out var canRetryPickup, false))
 				{
 					// entire thing was picked up
 					return;
 				}
 
-				if (!canRetryPickup || !thing.Spawned || thing.stackCount == 0 || splitThing.stackCount == job.count)
+				if (canRetryPickup <= 0)
 				{
 					return;
 				}
