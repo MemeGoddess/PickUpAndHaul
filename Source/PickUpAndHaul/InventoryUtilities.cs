@@ -81,13 +81,14 @@ public static class InventoryUtilities
 
 			Log.Message($"{pawn} stash {splitThing}:{splitThing.stackCount} into inventory");
 
-			if (splitThing == thing || thing.stackCount == 0)
+			if (splitThing == thing || thing.stackCount == 0 || pickupCount == splitThing.stackCount)
 			{
 				return true;
 			}
 
 			canRetryPickup = true;
-			Log.Message($"{pawn} failed to stash {thing}:{thing.stackCount} into inventory");
+			Log.Message($"{pawn} failed to stash {thing}:{splitThing.stackCount - pickupCount} into inventory");
+
 			return false;
 		}
 	}

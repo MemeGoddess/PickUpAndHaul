@@ -77,13 +77,12 @@ public class JobDriver_HaulToInventory : JobDriver
 					return;
 				}
 
-				if (!canRetryPickup || !thing.Spawned || thing.stackCount == 0)
+				if (!canRetryPickup || !thing.Spawned || thing.stackCount == 0 || splitThing.stackCount == job.count)
 				{
 					return;
 				}
 
 				//thing still remains, so manipulate the queue to make it the next thing to try picking up
-				Log.Message($"{pawn} picked up {splitThing.stackCount} but {thing.stackCount} remains");
 				job.GetTargetQueue(TargetIndex.A).Insert(0, thing);
 				job.countQueue.Insert(0, thing.stackCount);
 			}
