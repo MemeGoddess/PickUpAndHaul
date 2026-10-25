@@ -26,11 +26,10 @@ public static class InventoryUtilities
 		}
 
 
-		public bool TryAddItemToInventory(bool featureGate, Thing thing, out Thing splitThing)
+		public bool TryAddItemToInventory(Thing thing, out Thing splitThing)
 		{
 			splitThing = null;
 			if (thing == null
-			    || !featureGate
 			    || thing.Destroyed
 			    || !Settings.AllowCorpses && thing is Corpse
 			    || thing is Pawn

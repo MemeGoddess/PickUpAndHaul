@@ -3,28 +3,38 @@ using HarmonyLib;
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection.Emit;
-
 namespace PickUpAndHaul;
 [StaticConstructorOnStartup]
 [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony magic paramter names")]
 static class HarmonyPatches
 {
-	public static readonly List<(Type, string)> knownMethodsWhichTriggerCarryDrops =
+	private static readonly PropertyInfo p_StashInsteadOfDropOnNewJob = AccessTools.Property(typeof(Settings), nameof(Settings.StashInsteadOfDropOnNewJob));
+	private static readonly PropertyInfo p_StashOnHarvest = AccessTools.Property(typeof(Settings), nameof(Settings.StashOnHarvest));
+	// Used in the ApplyTranspilerForEnumerationMethods => multiMethodReplacer call chain to bake the feature flag fetch into the IL
+	private static PropertyInfo CurrentFeatureFlag;
+
+	public static readonly List<(Type, string, PropertyInfo)> knownMethodsWhichTriggerCarryDrops =
 	[
-		(typeof(Pawn_JobTracker), nameof(Pawn_JobTracker.StartJob)),
+		(typeof(Pawn_JobTracker), nameof(Pawn_JobTracker.StartJob), p_StashInsteadOfDropOnNewJob),
 		// don't drop carried stuff on instructed to fill a biosculpter pod
-		(typeof(JobDriver_CarryToBiosculpterPod), nameof(JobDriver_CarryToBiosculpterPod.DropCarryToGrabIngredients)), // delegate
+		(typeof(JobDriver_CarryToBiosculpterPod), nameof(JobDriver_CarryToBiosculpterPod.DropCarryToGrabIngredients), p_StashInsteadOfDropOnNewJob), // delegate
 		// don't drop carried stuff on entering a portal
-		(typeof(JobDriver_EnterPortal), nameof(JobDriver_EnterPortal.MakeNewToils)), // yield
+		(typeof(JobDriver_EnterPortal), nameof(JobDriver_EnterPortal.MakeNewToils), p_StashInsteadOfDropOnNewJob), // yield
 		// do not drop the book on the floor, hold onto it
-		(typeof(JobDriver_Reading), nameof(JobDriver_Reading.MakeNewToils)), // yield
+		(typeof(JobDriver_Reading), nameof(JobDriver_Reading.MakeNewToils), p_StashInsteadOfDropOnNewJob), // yield
 		// left-over reloading
-		(typeof(JobDriver_Reload), nameof(JobDriver_Reload.MakeNewToils)), // yield
-		(typeof(PawnFlyer), nameof(PawnFlyer.MakeFlyer)), // direct call
+		(typeof(JobDriver_Reload), nameof(JobDriver_Reload.MakeNewToils), p_StashInsteadOfDropOnNewJob), // yield
+		(typeof(PawnFlyer), nameof(PawnFlyer.MakeFlyer), p_StashInsteadOfDropOnNewJob), // direct call
 		// drafting drops whatever is being carried on the ground
-		(typeof(Pawn_DraftController), "set_" + nameof(Pawn_DraftController.Drafted)), // direct call
+		(typeof(Pawn_DraftController), "set_" + nameof(Pawn_DraftController.Drafted), p_StashInsteadOfDropOnNewJob), // direct call
 		// carrying a thing which isn't for the job
-		(typeof(JobDriver_HaulToCell), nameof(JobDriver_HaulToCell.MakeNewToils)), // yield + delegate
+		(typeof(JobDriver_HaulToCell), nameof(JobDriver_HaulToCell.MakeNewToils), p_StashInsteadOfDropOnNewJob), // yield + delegate
+	];
+
+	public static readonly List<(Type, string, PropertyInfo)> knownMethodsWhichTriggerTryPlaceThing =
+	[
+		// plant harvesting finishing
+		(typeof(JobDriver_PlantWork), nameof(JobDriver_PlantWork.MakeNewToils), p_StashOnHarvest),
 	];
 
 	static HarmonyPatches()
@@ -67,14 +77,19 @@ static class HarmonyPatches
 		harmony.Patch(AccessTools.Method(typeof(JobGiver_Haul), nameof(JobGiver_Haul.TryGiveJob)),
 			transpiler: new(typeof(HarmonyPatches), nameof(JobGiver_Haul_TryGiveJob_Transpiler)));
 
-		var stashInventoryOnDropTranspiler = new HarmonyMethod(typeof(HarmonyPatches), nameof(StashInventoryOnDropTranspiler));
-		foreach (var (type, methodPrefix) in knownMethodsWhichTriggerCarryDrops)
+		var stashInventoryOnDropTranspiler = new HarmonyMethod(typeof(HarmonyPatches), nameof(StashToInventoryOnDropTranspiler));
+		foreach (var (type, methodPrefix, featureFlag) in knownMethodsWhichTriggerCarryDrops)
 		{
+			CurrentFeatureFlag = featureFlag;
 			ApplyTranspilerForEnumerationMethods(harmony, type, methodPrefix, stashInventoryOnDropTranspiler);
 		}
 
-		var placeItemInInventory = new HarmonyMethod(typeof(HarmonyPatches), nameof(StashInventoryOnHarvestTranspiler));
-		ApplyTranspilerForEnumerationMethods(harmony, typeof(JobDriver_PlantWork), nameof(JobDriver_PlantWork.MakeNewToils), placeItemInInventory);
+		var placeItemInInventoryTranspiler = new HarmonyMethod(typeof(HarmonyPatches), nameof(StashInventoryOnPlaceTranspiler));
+		foreach (var (type, methodPrefix, featureFlag) in knownMethodsWhichTriggerTryPlaceThing)
+		{
+			CurrentFeatureFlag = featureFlag;
+			ApplyTranspilerForEnumerationMethods(harmony, type, methodPrefix, placeItemInInventoryTranspiler);
+		}
 
 		Verse.Log.Message("PickUpAndHaul v1.1.2¼ welcomes you to RimWorld with pointless logspam.");
 	}
@@ -230,7 +245,8 @@ static class HarmonyPatches
 
 	private delegate IEnumerable<CodeInstruction> OnMethodPatchCallSite(CodeInstruction instruction, MethodInfo replacementMethod, MethodBase original);
 
-	private static IEnumerable<CodeInstruction> multiMethodReplacer(IEnumerable<CodeInstruction> instructions, MethodBase original, string patchName, Dictionary<MethodInfo, MethodInfo> map, OnMethodPatchCallSite OnPatchCallSite = null)
+
+	private static IEnumerable<CodeInstruction> multiMethodReplacer(IEnumerable<CodeInstruction> instructions, ILGenerator generator, MethodBase original, string patchName, Dictionary<MethodInfo, MethodInfo> map, PropertyInfo featureFlag, OnMethodPatchCallSite OnPatchCallSite = null)
 	{
 		var foundMatch = false;
 		foreach (var instruction in instructions)
@@ -240,16 +256,38 @@ static class HarmonyPatches
 			    && map.TryGetValue(method, out var replacement))
 			{
 				foundMatch = true;
+
+				Label skipInventoryStashCheck = default;
+				if (featureFlag != null)
+				{
+					skipInventoryStashCheck = generator.DefineLabel();
+					yield return FishTranspiler.Call(featureFlag.GetGetMethod());
+					yield return FishTranspiler.IfFalse(skipInventoryStashCheck);
+				}
+
+				var replace = false;
 				if (OnPatchCallSite != null)
 				{
 					foreach (var i in OnPatchCallSite(instruction, replacement, original))
 					{
+						replace = true;
 						yield return i;
 					}
+				}
+
+				if (!replace)
+				{
+					yield return FishTranspiler.Call(replacement);
+				}
+
+				if (featureFlag != null)
+				{
+					var doneInventoryStashCheck = generator.DefineLabel();
+					yield return new CodeInstruction(OpCodes.Br_S, doneInventoryStashCheck);
+					yield return instruction.WithLabels(skipInventoryStashCheck);
+					yield return new CodeInstruction(OpCodes.Nop).WithLabels(doneInventoryStashCheck);
 					continue;
 				}
-				instruction.opcode = OpCodes.Call;
-				instruction.operand = replacement;
 			}
 
 			yield return instruction;
@@ -263,7 +301,7 @@ static class HarmonyPatches
 
 	private static bool TryStashToInventoryOrDrop1(Pawn_CarryTracker carryTracker, IntVec3 dropLoc, ThingPlaceMode mode, out Thing resultingThing, Action<Thing, int> placedAction)
 	{
-		if (!carryTracker.pawn.TryAddItemToInventory(Settings.StashInsteadOfDropOnNewJob, carryTracker.CarriedThing, out _))
+		if (!carryTracker.pawn.TryAddItemToInventory(carryTracker.CarriedThing, out _))
 		{
 			return carryTracker.TryDropCarriedThing(dropLoc, mode, out resultingThing, placedAction);
 		}
@@ -274,7 +312,7 @@ static class HarmonyPatches
 
 	private static bool TryStashToInventoryOrDrop2(Pawn_CarryTracker carryTracker, IntVec3 dropLoc, int count, ThingPlaceMode mode, out Thing resultingThing, Action<Thing, int> placedAction)
 	{
-		if (!carryTracker.pawn.TryAddItemToInventory(Settings.StashInsteadOfDropOnNewJob, carryTracker.CarriedThing, out _))
+		if (!carryTracker.pawn.TryAddItemToInventory(carryTracker.CarriedThing, out _))
 		{
 			return carryTracker.TryDropCarriedThing(dropLoc, count, mode, out resultingThing, placedAction);
 		}
@@ -283,7 +321,7 @@ static class HarmonyPatches
 		return false;
 	}
 
-	private static readonly Dictionary<MethodInfo, MethodInfo> StashInventoryOnDrop = new()
+	private static readonly Dictionary<MethodInfo, MethodInfo> StashToInventoryOnDrop = new()
 	{
 		{
 			AccessTools.Method(typeof(Pawn_CarryTracker), nameof(Pawn_CarryTracker.TryDropCarriedThing), [
@@ -299,10 +337,10 @@ static class HarmonyPatches
 		},
 	};
 
-	private static IEnumerable<CodeInstruction> StashInventoryOnDropTranspiler(IEnumerable<CodeInstruction> instructions, MethodBase original)
-		=> multiMethodReplacer(instructions, original, nameof(Pawn_CarryTracker.TryDropCarriedThing), StashInventoryOnDrop);
+	private static IEnumerable<CodeInstruction> StashToInventoryOnDropTranspiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator, MethodBase original)
+		=> multiMethodReplacer(instructions, generator, original, nameof(Pawn_CarryTracker.TryDropCarriedThing), StashToInventoryOnDrop, CurrentFeatureFlag);
 
-	private static readonly Dictionary<MethodInfo, MethodInfo> StashInventoryOnHarvest = new()
+	private static readonly Dictionary<MethodInfo, MethodInfo> StashInventoryOnJob = new()
 	{
 		{
 			AccessTools.Method(typeof(GenPlace), nameof(GenPlace.TryPlaceThing), [
@@ -329,7 +367,7 @@ static class HarmonyPatches
 		Pawn pawn // this parameter must be last to simplify IL patching
 		)
 	{
-		if (pawn == null || !pawn.TryAddItemToInventory(Settings.StashOnHarvest, thing, out _))
+		if (pawn == null || !pawn.TryAddItemToInventory(thing, out _))
 		{
 			return GenPlace.TryPlaceThing(thing, center, map, mode, placedAction, extraValidator, rot, squareRadius);
 		}
@@ -350,7 +388,7 @@ static class HarmonyPatches
 		Pawn pawn // this parameter must be last to simplify IL patching
 		)
 	{
-		if (pawn == null || !pawn.TryAddItemToInventory(Settings.StashOnHarvest, thing, out _))
+		if (pawn == null || !pawn.TryAddItemToInventory(thing, out _))
 		{
 			return GenPlace.TryPlaceThing(thing, center, map, mode, out lastResultingThing, placedAction, extraValidator, rot, squareRadius);
 		}
@@ -360,7 +398,7 @@ static class HarmonyPatches
 	}
 
 
-	private static IEnumerable<CodeInstruction> StashHarvestPatcher(CodeInstruction instruction, MethodInfo replacementMethod, MethodBase original)
+	private static IEnumerable<CodeInstruction> StashOnPlacePatcher(CodeInstruction instruction, MethodInfo replacementMethod, MethodBase original)
 	{
 		// direct method, not an IEnumerable
 		if (original.DeclaringType?.IsSubclassOf(typeof(JobDriver)) ?? false)
@@ -374,7 +412,6 @@ static class HarmonyPatches
 		if (variables == null || variables.Count == 0 || variables[0].LocalType != typeof(Pawn))
 		{
 			Verse.Log.Error($"{original.DeclaringType}:{original} method is not on a subclass of {typeof(JobDriver)} or the 1st local variable is not a {typeof(Pawn)}");
-			yield return instruction;
 			yield break;
 		}
 
@@ -382,7 +419,7 @@ static class HarmonyPatches
 		yield return FishTranspiler.Call(replacementMethod);
 	}
 
-	private static IEnumerable<CodeInstruction> StashInventoryOnHarvestTranspiler(IEnumerable<CodeInstruction> instructions, MethodBase original)
-		=> multiMethodReplacer(instructions, original, nameof(GenPlace.TryPlaceThing), StashInventoryOnHarvest, StashHarvestPatcher);
+	private static IEnumerable<CodeInstruction> StashInventoryOnPlaceTranspiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator, MethodBase original)
+		=> multiMethodReplacer(instructions, generator, original, nameof(GenPlace.TryPlaceThing), StashInventoryOnJob, CurrentFeatureFlag, StashOnPlacePatcher);
 
 }
