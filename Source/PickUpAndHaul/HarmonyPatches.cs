@@ -78,7 +78,7 @@ static class HarmonyPatches
 			prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(Drop_Prefix)));
 
 		harmony.Patch(original: AccessTools.Method(typeof(JobGiver_Idle), nameof(JobGiver_Idle.TryGiveJob)),
-			postfix: new HarmonyMethod(typeof(HarmonyPatches), nameof(IdleJoy_Postfix)));
+			postfix: new HarmonyMethod(typeof(HarmonyPatches), nameof(Idle_Postfix)));
 
 		harmony.Patch(original: AccessTools.Method(typeof(ITab_Pawn_Gear), nameof(ITab_Pawn_Gear.DrawThingRow)),
 			transpiler: new HarmonyMethod(typeof(HarmonyPatches), nameof(GearTabHighlightTranspiler)));
@@ -184,7 +184,7 @@ static class HarmonyPatches
 		}
 	}
 
-	public static void IdleJoy_Postfix(Pawn pawn) => pawn.CheckIfPawnShouldUnloadInventory(true);
+	public static void Idle_Postfix(Pawn pawn) => pawn.CheckIfPawnShouldUnloadInventory(true);
 
 	public static void DropUnusedInventory_PostFix(Pawn pawn) => pawn.CheckIfPawnShouldUnloadInventory();
 
