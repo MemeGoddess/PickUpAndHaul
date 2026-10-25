@@ -14,8 +14,6 @@ public class JobDriver_HaulToInventory : JobDriver
 	//get next, goto, take, check for more. Branches off to "all over the place"
 	public override IEnumerable<Toil> MakeNewToils()
 	{
-		var takenToInventory = pawn.HauledToInventoryComp();
-
 		var wait = Toils_General.Wait(2);
 
 		var pruneQueue = Toils_JobTransforms.ClearDespawnedNullOrForbiddenQueuedTargets(TargetIndex.A);
@@ -24,7 +22,7 @@ public class JobDriver_HaulToInventory : JobDriver
 
 		yield return CheckForOverencumberedForCombatExtended();
 		yield return GotoThing();
-		yield return TakeThing(takenToInventory);
+		yield return TakeThing();
 		yield return Toils_Jump.JumpIf(pruneQueue, () => !job.targetQueueA.NullOrEmpty());
 
 		//Find more to haul, in case things spawned while this was in progess
@@ -52,7 +50,7 @@ public class JobDriver_HaulToInventory : JobDriver
 		return gotoThing;
 	}
 
-	protected Toil TakeThing(CompHauledToInventory takenToInventory)
+	protected Toil TakeThing()
 	{
 		return new Toil
 		{
@@ -73,36 +71,21 @@ public class JobDriver_HaulToInventory : JobDriver
 					job.count = 1;
 				}
 
-				// todo the pickup count should be based on free-space not the job count which is only vaguely related to inventory size
-				//get max we can pick up
-				var countToPickUp = Mathf.Min(job.count, MassUtility.CountToPickUpUntilOverEncumbered(actor, thing));
-				if (ModCompatibilityCheck.CombatExtendedIsActive)
+				if (pawn.TryAddItemToInventory(thing, job.count, out var splitThing, out var canRetryPickup, false))
 				{
-					countToPickUp = CompatHelper.CanFitInInventory(pawn, thing);
+					// entire thing was picked up
+					return;
 				}
-				if (countToPickUp <= 0)
+
+				if (!canRetryPickup || !thing.Spawned || thing.stackCount == 0)
 				{
 					return;
 				}
-				Log.Message($"{actor} is hauling to inventory {thing}:{countToPickUp}");
-
-				var splitThing = thing.SplitOff(countToPickUp);
-				var shouldMerge = takenToInventory.GetHashSet().Any(x => x.def == thing.def);
-				actor.inventory.GetDirectlyHeldThings().TryAdd(splitThing, shouldMerge);
-				takenToInventory.RegisterHauledItem(splitThing);
-
-				if (ModCompatibilityCheck.CombatExtendedIsActive)
-				{
-					CompatHelper.UpdateInventory(pawn);
-				}
 
 				//thing still remains, so manipulate the queue to make it the next thing to try picking up
-				if (thing.Spawned)
-				{
-					Log.Message($"{pawn} picked up {countToPickUp} but {thing.stackCount} remains");
-					job.GetTargetQueue(TargetIndex.A).Insert(0, thing);
-					job.countQueue.Insert(0, thing.stackCount);
-				}
+				Log.Message($"{pawn} picked up {splitThing.stackCount} but {thing.stackCount} remains");
+				job.GetTargetQueue(TargetIndex.A).Insert(0, thing);
+				job.countQueue.Insert(0, thing.stackCount);
 			}
 		};
 	}

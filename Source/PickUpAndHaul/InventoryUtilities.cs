@@ -26,8 +26,9 @@ public static class InventoryUtilities
 		}
 
 
-		public bool TryAddItemToInventory(Thing thing, out Thing splitThing)
+		public bool TryAddItemToInventory(Thing thing, int pickupCount, out Thing splitThing, out bool canRetryPickup, bool tooHeavyMsg = true)
 		{
+			canRetryPickup = false;
 			splitThing = null;
 			if (thing == null
 			    || thing.Destroyed
@@ -37,7 +38,7 @@ public static class InventoryUtilities
 			    || pawn.inventory.innerContainer.Count >= pawn.inventory.innerContainer.maxStacks
 			   )
 			{
-				Log.Message($"{pawn} can't put {thing} into inventory, so will drop instead");
+				Log.Message($"{pawn} can't put {thing} into inventory");
 				return false;
 			}
 
@@ -48,26 +49,30 @@ public static class InventoryUtilities
 				return false;
 			}
 
-			var countToPickUp = Mathf.Min(thing.stackCount, MassUtility.CountToPickUpUntilOverEncumbered(pawn, thing));
+			var countToPickUp = Mathf.Min(pickupCount, MassUtility.CountToPickUpUntilOverEncumbered(pawn, thing));
 			if (ModCompatibilityCheck.CombatExtendedIsActive)
 			{
 				countToPickUp = CompatHelper.CanFitInInventory(pawn, thing);
 			}
 			if (countToPickUp <= 0)
 			{
-				Log.Message($"{pawn} can't put {thing} into inventory as it is too heavy, so will drop instead");
+				if (tooHeavyMsg)
+				{
+					Log.Message($"{pawn} can't put {thing} into inventory as it is too heavy");
+				}
+
 				return false;
 			}
 
 			var shouldMerge = comp.GetHashSet().Any(x => x.def == thing.def);
 			splitThing = thing.SplitOff(countToPickUp);
 			pawn.inventory.GetDirectlyHeldThings().TryAddOrTransfer(splitThing, shouldMerge);
+			comp.RegisterHauledItem(splitThing);
 
 			if (ModCompatibilityCheck.CombatExtendedIsActive)
 			{
 				CompatHelper.UpdateInventory(pawn);
 			}
-			comp.RegisterHauledItem(splitThing);
 
 			Log.Message($"{pawn} stash {splitThing}:{splitThing.stackCount} into inventory");
 
@@ -76,7 +81,8 @@ public static class InventoryUtilities
 				return true;
 			}
 
-			Log.Message($"{pawn} failed to stash {thing}:{thing.stackCount} into inventory, so will drop instead");
+			canRetryPickup = true;
+			Log.Message($"{pawn} failed to stash {thing}:{thing.stackCount} into inventory");
 			return false;
 		}
 	}
