@@ -14,7 +14,10 @@ static class HarmonyPatches
 
 	public static readonly List<(Type, string, PropertyInfo)> knownMethodsWhichTriggerCarryDrops =
 	[
-		(typeof(Pawn_JobTracker), nameof(Pawn_JobTracker.StartJob), p_StashInsteadOfDropOnNewJob),
+		// start of job, do not drop carried things
+		(typeof(Pawn_JobTracker), nameof(Pawn_JobTracker.StartJob), p_StashInsteadOfDropOnNewJob), // direct call
+		// *end* of job, do not drop carried things
+		(typeof(Pawn_JobTracker), nameof(Pawn_JobTracker.CleanupCurrentJob), p_StashInsteadOfDropOnNewJob), // direct call
 		// don't drop carried stuff on instructed to fill a biosculpter pod
 		(typeof(JobDriver_CarryToBiosculpterPod), nameof(JobDriver_CarryToBiosculpterPod.DropCarryToGrabIngredients), p_StashInsteadOfDropOnNewJob), // delegate
 		// don't drop carried stuff on entering a portal
