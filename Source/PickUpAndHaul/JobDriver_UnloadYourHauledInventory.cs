@@ -142,7 +142,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 					}
 
 					Log.Message($"{pawn} found destination {job.targetB} for thing {unloadableThing.Thing}");
-					if (!pawn.Map.reservationManager.Reserve(pawn, job, job.targetB, errorOnFailed: false))
+					if (!pawn.Map.reservationManager.Reserve(pawn, job, job.targetB, stackCount: unloadableThing.Count, errorOnFailed: false))
 					{
 						Log.Message(
 							$"{pawn} failed reserving destination {job.targetB}, dropping {unloadableThing.Thing}");
@@ -150,12 +150,12 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 							unloadableThing.Thing.stackCount, out _);
 						return;
 					}
-					_countToDrop = unloadableThing.Thing.stackCount;
+					_countToDrop = unloadableThing.Count;
 					return;
 				}
 
 				Log.Message($"Pawn {pawn} unable to find hauling destination, dropping {unloadableThing.Thing}");
-				pawn.inventory.innerContainer.TryDrop(unloadableThing.Thing, ThingPlaceMode.Near, unloadableThing.Thing.stackCount, out _);
+				pawn.inventory.innerContainer.TryDrop(unloadableThing.Thing, ThingPlaceMode.Near, unloadableThing.Count, out _);
 			}
 		};
 	}
@@ -174,6 +174,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 		var inventory = new HashSet<Thing>(innerPawnContainer);
 		var candidates = new List<(Thing,IntVec3,IHaulDestination)>(innerPawnContainer.Count);
 		(Thing, IntVec3, IHaulDestination) instantDropCandidate = default;
+		var reservations = pawn.Map.reservationManager;
 
 		var noStorageFree = true;
 		foreach (var thing in pendingDrops.OrderBy(t => t.def.FirstThingCategory?.index ?? -1).ThenBy(x => x.def.defName))
@@ -206,6 +207,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 				}
 			}
 
+			var isInvalid = true;
 			if (StoreUtility.TryFindBestBetterStorageFor(
 					candidate,
 					pawn,
@@ -219,22 +221,37 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 			{
 				if (haulDestination is Zone haulZone)
 				{
-					noStorageFree = false;
 					// zones stockpiles return a random cell. so pick the closest cell for the pawn instead of what was provided
-					cell = haulZone.cells[PickNearestInCellList(haulZone.cells, pawn.Position, pawn.Map, candidate)];
-					candidates.Add((candidate, cell, haulDestination));
+					var i = PickNearestInCellList(haulZone.cells, pawn, candidate);
+					if (i != -1)
+					{
+						isInvalid = false;
+						noStorageFree = false;
+						cell = haulZone.cells[i];
+						candidates.Add((candidate, cell, haulDestination));
+					}
 				}
-				else if (cell != IntVec3.Invalid || haulDestination is Thing)
+				else if (cell != IntVec3.Invalid)
 				{
-					noStorageFree = false;
-					candidates.Add((candidate, cell, haulDestination));
+					if (reservations.CanReserve(pawn, cell, 1, candidate.stackCount))
+					{
+						isInvalid = false;
+						noStorageFree = false;
+						candidates.Add((candidate, cell, haulDestination));
+					}
 				}
-				else
+				else if (haulDestination is Thing haulThing)
 				{
-					instantDropCandidate = (candidate, IntVec3.Invalid, null);
+					if (reservations.CanReserve(pawn, haulThing, 1, candidate.stackCount))
+					{
+						isInvalid = false;
+						noStorageFree = false;
+						candidates.Add((candidate, cell, haulDestination));
+					}
 				}
 			}
-			else
+
+			if (isInvalid)
 			{
 				// Nowhere to store it; PUAH drops it on the spot, which costs no travel.
 				instantDropCandidate = (candidate, IntVec3.Invalid, null);
@@ -264,16 +281,19 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 		return new ThingCount(chosen.Item1, chosen.Item1.stackCount);
 	}
 
-	private static int PickNearestInCellList(IReadOnlyList<IntVec3> destinations, IntVec3 from, Map map, Thing thingToPlace)
+	private static int PickNearestInCellList(IReadOnlyList<IntVec3> destinations, Pawn pawn, Thing thingToPlace)
 	{
-		var best = 0;
+		var best = -1;
 		var bestDistance = int.MaxValue;
 		var stackLimit = thingToPlace.def.stackLimit;
+		var map = pawn.Map;
+		var reservations = map.reservationManager;
+		var from = pawn.Position;
 		for (var i = 0; i < destinations.Count; i++)
 		{
 			var cell = destinations[i];
 			var distance = (cell - from).LengthHorizontalSquared;
-			if (distance < bestDistance)
+			if (distance < bestDistance && reservations.CanReserve(pawn, cell, 1, thingToPlace.stackCount))
 			{
 				var cellThings = cell.GetThingList(map);
 
