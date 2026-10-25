@@ -23,19 +23,40 @@ public class JobDriver_HaulToInventory : JobDriver
 		yield return Toils_JobTransforms.ExtractNextTargetFromQueue(TargetIndex.A); //also does count
 
 		yield return CheckForOverencumberedForCombatExtended();
+		yield return GotoThing();
+		yield return TakeThing(takenToInventory);
+		yield return Toils_Jump.JumpIf(pruneQueue, () => !job.targetQueueA.NullOrEmpty());
 
+		//Find more to haul, in case things spawned while this was in progess
+		yield return FindMoreToHaul();
+
+		//maintain cell reservations on the trip back
+		//TODO: do that when we carry things
+		//I guess that means TODO: implement carrying the rest of the items in this job instead of falling back on HaulToStorageJob
+		yield return TargetB.HasThing ? Toils_Goto.GotoThing(TargetIndex.B, PathEndMode.ClosestTouch)
+			: Toils_Goto.GotoCell(TargetIndex.B, PathEndMode.ClosestTouch);
+
+		yield return NextJob();
+		yield return wait;
+	}
+
+	protected Toil GotoThing()
+	{
 		var gotoThing = new Toil
 		{
-			debugName = "GotoThing",
+			debugName = nameof(GotoThing),
 			initAction = () => pawn.pather.StartPath(TargetThingA, PathEndMode.ClosestTouch),
 			defaultCompleteMode = ToilCompleteMode.PatherArrival
 		};
 		gotoThing.FailOnDespawnedNullOrForbidden(TargetIndex.A);
-		yield return gotoThing;
+		return gotoThing;
+	}
 
-		var takeThing = new Toil
+	protected Toil TakeThing(CompHauledToInventory takenToInventory)
+	{
+		return new Toil
 		{
-			debugName = "TakeThing",
+			debugName = nameof(TakeThing),
 			initAction = () =>
 			{
 				var actor = pawn;
@@ -84,20 +105,20 @@ public class JobDriver_HaulToInventory : JobDriver
 				}
 			}
 		};
-		yield return takeThing;
-		yield return Toils_Jump.JumpIf(pruneQueue, () => !job.targetQueueA.NullOrEmpty());
+	}
 
-		//Find more to haul, in case things spawned while this was in progess
-		yield return new Toil
+	protected Toil FindMoreToHaul()
+	{
+		return new Toil
 		{
-			debugName = "FindMoreToHaul",
+			debugName = nameof(FindMoreToHaul),
 			initAction = () =>
 			{
 				var haulables = WorkGiver_HaulToInventory.SortedHaulables(pawn);
 
 				Job haulMoreJob = null;
 				var haulMoreThing = WorkGiver_HaulToInventory.GetClosestAndRemove(pawn.Position, pawn.Map, haulables, PathEndMode.ClosestTouch,
-					   TraverseParms.For(pawn), 12, t => (haulMoreJob = WorkGiverDefs.HaulToInventoryWorker.JobOnThing(pawn, t)) != null);
+					TraverseParms.For(pawn), 12, t => (haulMoreJob = WorkGiverDefs.HaulToInventoryWorker.JobOnThing(pawn, t)) != null);
 
 				//WorkGiver_HaulToInventory found more work nearby
 				if (haulMoreThing != null)
@@ -108,6 +129,7 @@ public class JobDriver_HaulToInventory : JobDriver
 						Verse.Log.Error($"Returned an thing to haul but haul job is missing");
 						return;
 					}
+
 					if (haulMoreJob.TryMakePreToilReservations(pawn, false))
 					{
 						pawn.jobs.jobQueue.EnqueueFirst(haulMoreJob, JobTag.Misc);
@@ -116,16 +138,13 @@ public class JobDriver_HaulToInventory : JobDriver
 				}
 			}
 		};
+	}
 
-		//maintain cell reservations on the trip back
-		//TODO: do that when we carry things
-		//I guess that means TODO: implement carrying the rest of the items in this job instead of falling back on HaulToStorageJob
-		yield return TargetB.HasThing ? Toils_Goto.GotoThing(TargetIndex.B, PathEndMode.ClosestTouch)
-			: Toils_Goto.GotoCell(TargetIndex.B, PathEndMode.ClosestTouch);
-
-		yield return new Toil //Queue next job
+	protected Toil NextJob()
+	{
+		return new Toil //Queue next job
 		{
-			debugName = "NextJob",
+			debugName = nameof(NextJob),
 			initAction = () =>
 			{
 				var actor = pawn;
@@ -141,7 +160,6 @@ public class JobDriver_HaulToInventory : JobDriver
 				}
 			}
 		};
-		yield return wait;
 	}
 
 	/// <summary>
