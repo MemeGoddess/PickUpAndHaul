@@ -348,12 +348,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 			}
 			else
 			{
-				Log.Message($"{pawn} {nextThing} can't stack with allocated cells");
-
-				if (job.targetQueueA.NullOrEmpty())
-				{
-					job.targetQueueA.Add(nextThing);
-				}
+				Log.Message($"{pawn} can not find a destination for {nextThing}");
 
 				return false;
 			}
