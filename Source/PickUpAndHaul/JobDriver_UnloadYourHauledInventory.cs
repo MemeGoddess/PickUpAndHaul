@@ -217,7 +217,14 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 					true
 				))
 			{
-				if (cell != IntVec3.Invalid || haulDestination is Thing)
+				if (haulDestination is Zone haulZone)
+				{
+					noStorageFree = false;
+					// zones stockpiles return a random cell. so pick the closest cell for the pawn instead of what was provided
+					cell = haulZone.cells[PickNearestInCellList(haulZone.cells, pawn.Position, pawn.Map, candidate)];
+					candidates.Add((candidate, cell, haulDestination));
+				}
+				else if (cell != IntVec3.Invalid || haulDestination is Thing)
 				{
 					noStorageFree = false;
 					candidates.Add((candidate, cell, haulDestination));
@@ -255,6 +262,49 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 		foundDestination = chosen.Item3;
 
 		return new ThingCount(chosen.Item1, chosen.Item1.stackCount);
+	}
+
+	private static int PickNearestInCellList(IReadOnlyList<IntVec3> destinations, IntVec3 from, Map map, Thing thingToPlace)
+	{
+		var best = 0;
+		var bestDistance = int.MaxValue;
+		var stackLimit = thingToPlace.def.stackLimit;
+		for (var i = 0; i < destinations.Count; i++)
+		{
+			var cell = destinations[i];
+			var distance = (cell - from).LengthHorizontalSquared;
+			if (distance < bestDistance)
+			{
+				var cellThings = cell.GetThingList(map);
+
+				if (stackLimit > 1)
+				{
+					var canNotMerge = true;
+					foreach (var cellThing in cellThings)
+					{
+						if (cellThing.CanStackWith(thingToPlace) && thingToPlace.stackCount + cellThing.stackCount < stackLimit)
+						{
+							canNotMerge = false;
+							break;
+						}
+					}
+
+					if (canNotMerge)
+					{
+						continue;
+					}
+				}
+				else if (cellThings.Count > 0)
+				{
+					continue;
+				}
+
+				bestDistance = distance;
+				best = i;
+			}
+		}
+
+		return best;
 	}
 
 	private static int PickNearest(IReadOnlyList<(Thing,IntVec3, IHaulDestination)> destinations, IntVec3 from)
