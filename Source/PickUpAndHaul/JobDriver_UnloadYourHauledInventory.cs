@@ -174,7 +174,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 		var inventory = new HashSet<Thing>(innerPawnContainer);
 		var candidates = new List<(Thing,IntVec3,IHaulDestination)>(innerPawnContainer.Count);
 		(Thing, IntVec3, IHaulDestination) instantDropCandidate = default;
-		var reservations = pawn.Map.reservationManager;
+		var pickFirstMatch = !Settings.ScanForClosestBestDestination;
 
 		var noStorageFree = true;
 		foreach (var thing in pendingDrops.OrderBy(t => t.def.FirstThingCategory?.index ?? -1).ThenBy(x => x.def.defName))
@@ -243,6 +243,11 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 			{
 				// Nowhere to store it; PUAH drops it on the spot, which costs no travel.
 				instantDropCandidate = (candidate, IntVec3.Invalid, null);
+			}
+
+			if (pickFirstMatch)
+			{
+				break;
 			}
 		}
 

@@ -6,6 +6,7 @@ public class Settings : ModSettings
 	private static bool _allowAnimals = true;
 	private static bool _allowMechanoids = true;
 	private static bool _alwaysAllowPickup = true;
+	private static bool _scanForClosestBestDestination = true;
 	private static bool _stashInsteadOfDropOnNewJob = true;
 	private static bool _stashOnHarvest = true;
 	private static bool _stashOnRecipeFinish = true;
@@ -15,6 +16,7 @@ public class Settings : ModSettings
 	public static bool AllowAnimals => _allowAnimals;
 	public static bool AllowMechanoids => _allowMechanoids;
 	public static bool AlwaysAllowPickup => _alwaysAllowPickup;
+	public static bool ScanForClosestBestDestination => _scanForClosestBestDestination;
 	public static bool StashInsteadOfDropOnNewJob => _stashInsteadOfDropOnNewJob;
 	public static bool StashOnHarvest => _stashOnHarvest;
 	public static bool StashOnRecipeFinish => _stashOnRecipeFinish;
@@ -30,6 +32,7 @@ public class Settings : ModSettings
 		ls.CheckboxLabeled("PUAH.allowAnimals".Translate(), ref _allowAnimals, "PUAH.allowAnimalsTooltip".Translate());
 		ls.CheckboxLabeled("PUAH.allowMechanoids".Translate(), ref _allowMechanoids, "PUAH.allowMechanoidsTooltip".Translate());
 		ls.CheckboxLabeled("PUAH.alwaysAllowPickup".Translate(), ref _alwaysAllowPickup, "PUAH.alwaysAllowPickupTooltip".Translate());
+		ls.CheckboxLabeled("PUAH.scanForClosestBestDestination".Translate(), ref _scanForClosestBestDestination, "PUAH.scanForClosestBestDestinationTooltip".Translate());
 		ls.CheckboxLabeled("PUAH.stashInsteadOfDropOnNewJob".Translate(), ref _stashInsteadOfDropOnNewJob, "PUAH.stashInsteadOfDropOnNewJobTooltip".Translate());
 		ls.CheckboxLabeled("PUAH.stashOnHarvest".Translate(), ref _stashOnHarvest, "PUAH.stashOnHarvestTooltip".Translate());
 		ls.CheckboxLabeled("PUAH.stashOnRecipeFinish".Translate(), ref _stashOnRecipeFinish, "PUAH.stashOnRecipeFinishTooltip".Translate());
@@ -55,6 +58,7 @@ public class Settings : ModSettings
 		Scribe_Values.Look(ref _allowAnimals, "allowAnimals", true);
 		Scribe_Values.Look(ref _allowMechanoids, "allowMechanoids", true);
 		Scribe_Values.Look(ref _alwaysAllowPickup, "alwaysAllowPickup", true);
+		Scribe_Values.Look(ref _scanForClosestBestDestination, "scanForClosestBestDestination", true);
 		Scribe_Values.Look(ref _stashInsteadOfDropOnNewJob, "stashInsteadOfDropOnNewJob", true);
 		Scribe_Values.Look(ref _stashOnHarvest, "stashOnHarvest", true);
 		Scribe_Values.Look(ref _stashOnRecipeFinish, "stashOnRecipeFinish", true);

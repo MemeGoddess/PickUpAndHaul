@@ -7,6 +7,8 @@
 	<PUAH.allowAnimalsTooltip>Default On. Works best with mods that give backpacks to more animals, like VFME Caravan Packs</PUAH.allowAnimalsTooltip>
 	<PUAH.allowMechanoids>Allow hacked mechanoids using their inventory for hauling</PUAH.allowMechanoids>
 	<PUAH.allowMechanoidsTooltip>Requires What The Hack or similar mods. Default On.</PUAH.allowMechanoidsTooltip>
+	<PUAH.scanForClosestBestDestination>When unloading, scan for the closest best destination instead of picking the first unloadable</PUAH.scanForClosestBestDestination>
+	<PUAH.scanForClosestBestDestinationTooltip>For the trade-off of more processing time, unloading can be done more efficiently</PUAH.scanForClosestBestDestinationTooltip>
 	<PUAH.alwaysAllowPickup>Force allow pickup in home area for non-quest pawns</PUAH.alwaysAllowPickup>
 	<PUAH.alwaysAllowPickupTooltip>The home map has additional restrictions on what things can be picked up, this simplifies so remote maps and home maps behave the same</PUAH.alwaysAllowPickupTooltip>
 	<PUAH.stashInsteadOfDropOnNewJob>Auto-stash on new job if carrying a thing</PUAH.stashInsteadOfDropOnNewJob>
