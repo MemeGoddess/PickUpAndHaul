@@ -225,6 +225,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 					var i = PickNearestInCellList(haulZone.cells, pawn, candidate);
 					if (i != -1)
 					{
+						Log.Message($"{pawn} on empty inventory, found valid zone for {candidate}");
 						isInvalid = false;
 						noStorageFree = false;
 						cell = haulZone.cells[i];
@@ -233,6 +234,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 				}
 				else if (haulDestination is Thing || cell != IntVec3.Invalid)
 				{
+					Log.Message($"{pawn} on empty inventory, found validate hauling destination for {candidate}");
 					isInvalid = false;
 					noStorageFree = false;
 					candidates.Add((candidate, cell, haulDestination));
@@ -241,6 +243,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 
 			if (isInvalid)
 			{
+				Log.Message($"{pawn} on empty inventory, could not find a destination for {candidate}");
 				// Nowhere to store it; PUAH drops it on the spot, which costs no travel.
 				instantDropCandidate = (candidate, IntVec3.Invalid, null);
 			}

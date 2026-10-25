@@ -408,13 +408,12 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 			var capacityOver = -storeCellCapacity[storeCell].capacity;
 			storeCellCapacity.Remove(storeCell);
 
-			Log.Message($"{pawn} overdone {storeCell} by {capacityOver}");
-
 			if (capacityOver == 0)
 			{
 				break;  //don't find new cell, might not have more of this thing to haul
 			}
 
+			Log.Message($"{pawn} overdone {storeCell} by {capacityOver}");
 			var currentPriority = StoreUtility.CurrentStoragePriorityOf(nextThing);
 			if (TryFindBestBetterStorageFor(nextThing, pawn, map, currentPriority, pawn.Faction, out var nextStoreCell, out var nextHaulDestination, out var innerInteractableThingOwner))
 			{
