@@ -46,7 +46,8 @@ static class HarmonyPatches
 		var harmony = new Harmony("mehni.rimworld.pickupandhaul.main");
 #if DEBUG
 		Harmony.DEBUG = true;
-
+#endif
+#if DEBUG_EXTRA_LOGS
 		foreach (var keyValuePair in StashToInventoryOnDrop)
 		{
 			harmony.Patch(keyValuePair.Key,
@@ -104,7 +105,7 @@ static class HarmonyPatches
 		Verse.Log.Message("PickUpAndHaul v1.1.2¼ welcomes you to RimWorld with pointless logspam.");
 	}
 
-#if DEBUG
+#if DEBUG_EXTRA_LOGS
 	private static void TraceDropCarriedThingPrefix(Pawn_CarryTracker __instance, ref Thing __state)
 	{
 		if (Settings.StashInsteadOfDropOnNewJob)
