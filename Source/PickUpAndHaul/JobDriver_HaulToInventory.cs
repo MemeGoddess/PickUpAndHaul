@@ -26,6 +26,7 @@ public class JobDriver_HaulToInventory : JobDriver
 
 		var gotoThing = new Toil
 		{
+			debugName = "GotoThing",
 			initAction = () => pawn.pather.StartPath(TargetThingA, PathEndMode.ClosestTouch),
 			defaultCompleteMode = ToilCompleteMode.PatherArrival
 		};
@@ -34,6 +35,7 @@ public class JobDriver_HaulToInventory : JobDriver
 
 		var takeThing = new Toil
 		{
+			debugName = "TakeThing",
 			initAction = () =>
 			{
 				var actor = pawn;
@@ -88,6 +90,7 @@ public class JobDriver_HaulToInventory : JobDriver
 		//Find more to haul, in case things spawned while this was in progess
 		yield return new Toil
 		{
+			debugName = "FindMoreToHaul",
 			initAction = () =>
 			{
 				var haulables = WorkGiver_HaulToInventory.SortedHaulables(pawn);
@@ -122,6 +125,7 @@ public class JobDriver_HaulToInventory : JobDriver
 
 		yield return new Toil //Queue next job
 		{
+			debugName = "NextJob",
 			initAction = () =>
 			{
 				var actor = pawn;
@@ -146,7 +150,7 @@ public class JobDriver_HaulToInventory : JobDriver
 	/// <returns></returns>
 	public Toil CheckForOverencumberedForCombatExtended()
 	{
-		var toil = new Toil();
+		var toil = ToilMaker.MakeToil();
 
 		if (!ModCompatibilityCheck.CombatExtendedIsActive)
 		{

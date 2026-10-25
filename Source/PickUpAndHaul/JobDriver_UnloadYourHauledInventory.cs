@@ -62,6 +62,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 	{
 		return new()
 		{
+			debugName = nameof(ReleaseReservation),
 			initAction = () =>
 			{
 				if (pawn.Map.reservationManager.ReservedBy(job.targetB, pawn, pawn.CurJob)
@@ -77,6 +78,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 	{
 		return new()
 		{
+			debugName = nameof(PullItemFromInventory),
 			initAction = () =>
 			{
 				var thing = job.GetTarget(TargetIndex.A).Thing;
@@ -114,6 +116,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 	{
 		return new()
 		{
+			debugName = nameof(FindTargetOrDrop),
 			initAction = () =>
 			{
 				var unloadableThing = FirstUnloadableThing(pawn, hauledToInventoryComp);
