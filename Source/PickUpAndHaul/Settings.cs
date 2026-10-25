@@ -8,6 +8,7 @@ public class Settings : ModSettings
 	private static bool _alwaysAllowPickup = true;
 	private static bool _stashInsteadOfDropOnNewJob = true;
 	private static bool _stashOnHarvest = false;
+	private static bool _stashOnRecipeFinish = false;
 	private static float _maximumOccupiedCapacityToConsiderHauling = 0.8f;
 
 	public static bool AllowCorpses => _allowCorpses;
@@ -16,6 +17,7 @@ public class Settings : ModSettings
 	public static bool AlwaysAllowPickup => _alwaysAllowPickup;
 	public static bool StashInsteadOfDropOnNewJob => _stashInsteadOfDropOnNewJob;
 	public static bool StashOnHarvest => _stashOnHarvest;
+	public static bool StashOnRecipeFinish => _stashOnRecipeFinish;
 	public static float MaximumOccupiedCapacityToConsiderHauling => _maximumOccupiedCapacityToConsiderHauling;
 
 	public static bool IsAllowedRace(RaceProperties props) => props.Humanlike || (AllowAnimals && props.Animal) || (AllowMechanoids && props.IsMechanoid);
@@ -30,6 +32,7 @@ public class Settings : ModSettings
 		ls.CheckboxLabeled("PUAH.alwaysAllowPickup".Translate(), ref _alwaysAllowPickup, "PUAH.alwaysAllowPickupTooltip".Translate());
 		ls.CheckboxLabeled("PUAH.stashInsteadOfDropOnNewJob".Translate(), ref _stashInsteadOfDropOnNewJob, "PUAH.stashInsteadOfDropOnNewJobTooltip".Translate());
 		ls.CheckboxLabeled("PUAH.stashOnHarvest".Translate(), ref _stashOnHarvest, "PUAH.stashOnHarvestTooltip".Translate());
+		ls.CheckboxLabeled("PUAH.stashOnRecipeFinish".Translate(), ref _stashOnRecipeFinish, "PUAH.stashOnRecipeFinishTooltip".Translate());
 		var minimumFreeInventorySpace = (float)Math.Round((1 - _maximumOccupiedCapacityToConsiderHauling) * 100f);
 		var previousAlignment = Text.Anchor;
 		Text.Anchor = TextAnchor.MiddleRight;
@@ -53,6 +56,7 @@ public class Settings : ModSettings
 		Scribe_Values.Look(ref _allowMechanoids, "allowMechanoids", true);
 		Scribe_Values.Look(ref _stashInsteadOfDropOnNewJob, "stashInsteadOfDropOnNewJob", true);
 		Scribe_Values.Look(ref _stashOnHarvest, "stashOnHarvest", false);
+		Scribe_Values.Look(ref _stashOnRecipeFinish, "stashOnRecipeFinish", false);
 		Scribe_Values.Look(ref _maximumOccupiedCapacityToConsiderHauling, "maximumOccupiedCapacityToConsiderHauling", 0.8f);
 	}
 }

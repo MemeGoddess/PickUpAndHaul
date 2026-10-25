@@ -10,6 +10,7 @@ static class HarmonyPatches
 {
 	private static readonly PropertyInfo p_StashInsteadOfDropOnNewJob = AccessTools.Property(typeof(Settings), nameof(Settings.StashInsteadOfDropOnNewJob));
 	private static readonly PropertyInfo p_StashOnHarvest = AccessTools.Property(typeof(Settings), nameof(Settings.StashOnHarvest));
+	private static readonly PropertyInfo p_StashOnRecipeFinish = AccessTools.Property(typeof(Settings), nameof(Settings.StashOnRecipeFinish));
 	// Used in the ApplyTranspilerForEnumerationMethods => multiMethodReplacer call chain to bake the feature flag fetch into the IL
 	private static PropertyInfo CurrentFeatureFlag;
 
@@ -35,6 +36,8 @@ static class HarmonyPatches
 	[
 		// plant harvesting finishing
 		(typeof(JobDriver_PlantWork), nameof(JobDriver_PlantWork.MakeNewToils), p_StashOnHarvest),
+		// recipe bills with "drop on floor" completion mode
+		(typeof(Toils_Recipe), nameof(Toils_Recipe.FinishRecipeAndStartStoringProduct), p_StashOnRecipeFinish),
 	];
 
 	static HarmonyPatches()
