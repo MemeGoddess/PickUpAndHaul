@@ -25,6 +25,11 @@ public static class InventoryUtilities
 			return pawn?.TryGetComp<CompHauledToInventory>()?.Contains(thing) ?? false;
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public bool TryAddItemToInventoryForStashing(Thing thing, out Thing lastResultingThing)
+		{
+			return pawn.TryAddItemToInventory(thing, thing.stackCount, out lastResultingThing, out _);
+		}
 
 		public bool TryAddItemToInventory(Thing thing, int pickupCount, out Thing splitThing, out bool canRetryPickup, bool tooHeavyMsg = true)
 		{

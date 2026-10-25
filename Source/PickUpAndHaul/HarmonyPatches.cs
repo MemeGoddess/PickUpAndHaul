@@ -346,8 +346,7 @@ static class HarmonyPatches
 
 	private static bool TryStashToInventoryOrDrop1(Pawn_CarryTracker carryTracker, IntVec3 dropLoc, ThingPlaceMode mode, out Thing resultingThing, Action<Thing, int> placedAction)
 	{
-		var thing = carryTracker.CarriedThing;
-		if (!carryTracker.pawn.TryAddItemToInventory(thing, thing.stackCount, out _, out _))
+		if (!carryTracker.pawn.TryAddItemToInventoryForStashing(carryTracker.CarriedThing, out _))
 		{
 			return carryTracker.TryDropCarriedThing(dropLoc, mode, out resultingThing, placedAction);
 		}
@@ -358,8 +357,7 @@ static class HarmonyPatches
 
 	private static bool TryStashToInventoryOrDrop2(Pawn_CarryTracker carryTracker, IntVec3 dropLoc, int count, ThingPlaceMode mode, out Thing resultingThing, Action<Thing, int> placedAction)
 	{
-		var thing = carryTracker.CarriedThing;
-		if (!carryTracker.pawn.TryAddItemToInventory(thing, thing.stackCount, out _, out _))
+		if (!carryTracker.pawn.TryAddItemToInventoryForStashing(carryTracker.CarriedThing, out _))
 		{
 			return carryTracker.TryDropCarriedThing(dropLoc, count, mode, out resultingThing, placedAction);
 		}
@@ -414,7 +412,7 @@ static class HarmonyPatches
 		Pawn pawn // this parameter must be last to simplify IL patching
 		)
 	{
-		if (pawn == null || !pawn.TryAddItemToInventory(thing, thing.stackCount, out _, out _))
+		if (pawn == null || !pawn.TryAddItemToInventoryForStashing(thing, out _))
 		{
 			return GenPlace.TryPlaceThing(thing, center, map, mode, placedAction, extraValidator, rot, squareRadius);
 		}
@@ -435,7 +433,7 @@ static class HarmonyPatches
 		Pawn pawn // this parameter must be last to simplify IL patching
 		)
 	{
-		if (pawn == null || !pawn.TryAddItemToInventory(thing, thing.stackCount, out lastResultingThing, out _))
+		if (pawn == null || !pawn.TryAddItemToInventoryForStashing(thing, out lastResultingThing))
 		{
 			return GenPlace.TryPlaceThing(thing, center, map, mode, out lastResultingThing, placedAction, extraValidator, rot, squareRadius);
 		}
