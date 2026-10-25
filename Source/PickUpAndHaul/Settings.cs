@@ -54,6 +54,7 @@ public class Settings : ModSettings
 		Scribe_Values.Look(ref _allowCorpses, "allowCorpses");
 		Scribe_Values.Look(ref _allowAnimals, "allowAnimals", true);
 		Scribe_Values.Look(ref _allowMechanoids, "allowMechanoids", true);
+		Scribe_Values.Look(ref _alwaysAllowPickup, "alwaysAllowPickup", true);
 		Scribe_Values.Look(ref _stashInsteadOfDropOnNewJob, "stashInsteadOfDropOnNewJob", true);
 		Scribe_Values.Look(ref _stashOnHarvest, "stashOnHarvest", true);
 		Scribe_Values.Look(ref _stashOnRecipeFinish, "stashOnRecipeFinish", true);
