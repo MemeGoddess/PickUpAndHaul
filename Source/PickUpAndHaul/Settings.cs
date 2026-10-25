@@ -7,8 +7,8 @@ public class Settings : ModSettings
 	private static bool _allowMechanoids = true;
 	private static bool _alwaysAllowPickup = true;
 	private static bool _stashInsteadOfDropOnNewJob = true;
-	private static bool _stashOnHarvest = false;
-	private static bool _stashOnRecipeFinish = false;
+	private static bool _stashOnHarvest = true;
+	private static bool _stashOnRecipeFinish = true;
 	private static float _maximumOccupiedCapacityToConsiderHauling = 0.8f;
 
 	public static bool AllowCorpses => _allowCorpses;
