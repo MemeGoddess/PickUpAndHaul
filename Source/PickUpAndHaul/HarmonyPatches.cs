@@ -45,6 +45,14 @@ static class HarmonyPatches
 		var harmony = new Harmony("mehni.rimworld.pickupandhaul.main");
 #if DEBUG
 		Harmony.DEBUG = true;
+
+		foreach (var keyValuePair in StashToInventoryOnDrop)
+		{
+			harmony.Patch(keyValuePair.Key,
+				prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(TraceDropCarriedThingPrefix)),
+				postfix: new HarmonyMethod(typeof(HarmonyPatches), nameof(TraceDropCarriedThingPostfix))
+			);
+		}
 #endif
 
 		if (!ModCompatibilityCheck.CombatExtendedIsActive)
@@ -97,6 +105,23 @@ static class HarmonyPatches
 		Verse.Log.Message("PickUpAndHaul v1.1.2¼ welcomes you to RimWorld with pointless logspam.");
 	}
 
+#if DEBUG
+	private static void TraceDropCarriedThingPrefix(Pawn_CarryTracker __instance, ref Thing __state)
+	{
+		if (Settings.StashInsteadOfDropOnNewJob)
+		{
+			__state = __instance.CarriedThing;
+		}
+	}
+
+	private static void TraceDropCarriedThingPostfix(Pawn_CarryTracker __instance, bool __result, Thing __state)
+	{
+		if (__result && __state != null && Settings.StashInsteadOfDropOnNewJob)
+		{
+			Log.Message($"{__instance.pawn} dropped {__state}");
+		}
+	}
+#endif
 
 	public static void ApplyTranspilerForEnumerationMethods(Harmony harmony, Type type, string methodPrefix, HarmonyMethod Transpiler)
 	{
