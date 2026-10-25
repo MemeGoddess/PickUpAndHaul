@@ -28,7 +28,7 @@ public class Settings : ModSettings
 		ls.CheckboxLabeled("PUAH.allowAnimals".Translate(), ref _allowAnimals, "PUAH.allowAnimalsTooltip".Translate());
 		ls.CheckboxLabeled("PUAH.allowMechanoids".Translate(), ref _allowMechanoids, "PUAH.allowMechanoidsTooltip".Translate());
 		ls.CheckboxLabeled("PUAH.alwaysAllowPickup".Translate(), ref _alwaysAllowPickup, "PUAH.alwaysAllowPickupTooltip".Translate());
-		ls.CheckboxLabeled("PUAH.stashInsteadOfDropOnNewJob".Translate(), ref _stashInsteadOfDropOnNewJob, "PUAH.stashInsteadOfDropOnNewJobToolTip".Translate());
+		ls.CheckboxLabeled("PUAH.stashInsteadOfDropOnNewJob".Translate(), ref _stashInsteadOfDropOnNewJob, "PUAH.stashInsteadOfDropOnNewJobTooltip".Translate());
 		ls.CheckboxLabeled("PUAH.stashOnHarvest".Translate(), ref _stashOnHarvest, "PUAH.stashOnHarvestTooltip".Translate());
 		var minimumFreeInventorySpace = (float)Math.Round((1 - _maximumOccupiedCapacityToConsiderHauling) * 100f);
 		var previousAlignment = Text.Anchor;
