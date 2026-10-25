@@ -120,7 +120,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 			{
 				var unloadableThing = FirstUnloadableThingWithDestination(pawn, hauledToInventoryComp, out var cell, out var destination);
 
-				if (unloadableThing.Count == 0)
+				if (unloadableThing.count == 0)
 				{
 					if (hauledToInventoryComp.IsEmpty())
 					{
@@ -147,15 +147,15 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 						Log.Message(
 							$"{pawn} failed reserving destination {job.targetB}, dropping {unloadableThing.Thing}");
 						pawn.inventory.innerContainer.TryDrop(unloadableThing.Thing, ThingPlaceMode.Near,
-							unloadableThing.Thing.stackCount, out _);
+							unloadableThing.count, out _);
 						return;
 					}
-					_countToDrop = unloadableThing.Count;
+					_countToDrop = unloadableThing.count;
 					return;
 				}
 
 				Log.Message($"Pawn {pawn} unable to find hauling destination, dropping {unloadableThing.Thing}");
-				pawn.inventory.innerContainer.TryDrop(unloadableThing.Thing, ThingPlaceMode.Near, unloadableThing.Count, out _);
+				pawn.inventory.innerContainer.TryDrop(unloadableThing.Thing, ThingPlaceMode.Near, unloadableThing.count, out _);
 			}
 		};
 	}
