@@ -26,8 +26,9 @@ public class JobDriver_HaulToInventory : JobDriver
 		yield return Toils_Jump.JumpIf(pruneQueue, () => !job.targetQueueA.NullOrEmpty());
 
 		// This causes vast amounts of over-fetching due to a lack of reservations, disable until it can be debugged/fixed/removed
+        // This is currently loadbearing for hauling more than 1 stack of things to the same destination due to TryFindBestBetterStorageFor only visiting a destination once
 		//Find more to haul, in case things spawned while this was in progess
-		//yield return FindMoreToHaul();
+		yield return FindMoreToHaul();
 
 		//maintain cell reservations on the trip back
 		//TODO: do that when we carry things
