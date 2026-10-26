@@ -7,6 +7,17 @@
 	<PUAH.allowAnimalsTooltip>Default On. Works best with mods that give backpacks to more animals, like VFME Caravan Packs</PUAH.allowAnimalsTooltip>
 	<PUAH.allowMechanoids>Allow hacked mechanoids using their inventory for hauling</PUAH.allowMechanoids>
 	<PUAH.allowMechanoidsTooltip>Requires What The Hack or similar mods. Default On.</PUAH.allowMechanoidsTooltip>
+	<PUAH.scanForClosestBestDestination>When unloading, scan for the closest best destination instead of picking the first unloadable</PUAH.scanForClosestBestDestination>
+	<PUAH.scanForClosestBestDestinationTooltip>For the trade-off of more processing time, unloading can be done more efficiently</PUAH.scanForClosestBestDestinationTooltip>
+	<PUAH.alwaysAllowPickup>Force allow pickup in home area for non-quest pawns</PUAH.alwaysAllowPickup>
+	<PUAH.alwaysAllowPickupTooltip>The home map has additional restrictions on what things can be picked up, this simplifies so remote maps and home maps behave the same</PUAH.alwaysAllowPickupTooltip>
+	<PUAH.stashInsteadOfDropOnNewJob>Auto-stash on new job if carrying a thing</PUAH.stashInsteadOfDropOnNewJob>
+	<PUAH.stashInsteadOfDropOnNewJobTooltip>Attempts to stash into inventory instead of dropping on the floor when starting a new job</PUAH.stashInsteadOfDropOnNewJobTooltip>
+	<PUAH.stashOnHarvest>Auto-stash on harvesting plants</PUAH.stashOnHarvest>
+	<PUAH.stashOnHarvestTooltip>Attempts to stash into inventory instead of having the harvest results drop on the floor</PUAH.stashOnHarvestTooltip>
+	<PUAH.stashOnRecipeFinish>Auto-stash on "drop on floor" bill finishes</PUAH.stashOnRecipeFinish>
+	<PUAH.stashOnRecipeFinishTooltip>Attempts to stash into inventory for bill results for configured to "drop on floor"</PUAH.stashOnRecipeFinishTooltip>
+	<PUAH.DropThing>Drop (pending)</PUAH.DropThing>
 	<PUAH.minimumFreeInventorySpace>Minimum free inventory space to consider hauling to inventory</PUAH.minimumFreeInventorySpace>
 	<PUAH.minimumFreeInventorySpaceTooltip>Pawns with less free inventory space than defined here just directly use vanilla hauling. 0% makes them always try hauling to inventory, regardless of them having room for more than one potato or not. 100% results in PUAH requiring pawns to be completely naked. Default 20%</PUAH.minimumFreeInventorySpaceTooltip>
 </LanguageData>

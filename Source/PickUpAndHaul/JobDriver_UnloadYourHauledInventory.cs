@@ -29,9 +29,9 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 		var begin = Toils_General.Wait(_unloadDuration);
 		yield return begin;
 
-		var carriedThings = pawn.TryGetComp<CompHauledToInventory>().GetHashSet();
-		yield return FindTargetOrDrop(carriedThings);
-		yield return PullItemFromInventory(carriedThings, begin);
+		var HauledToInventoryComp = pawn.HauledToInventoryComp();
+		yield return FindTargetOrDrop(HauledToInventoryComp);
+		yield return PullItemFromInventory(HauledToInventoryComp, begin);
 
 		var releaseReservation = ReleaseReservation();
 		var carryToCell = Toils_Haul.CarryHauledThingToCell(TargetIndex.B);
@@ -62,6 +62,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 	{
 		return new()
 		{
+			debugName = nameof(ReleaseReservation),
 			initAction = () =>
 			{
 				if (pawn.Map.reservationManager.ReservedBy(job.targetB, pawn, pawn.CurJob)
@@ -73,25 +74,24 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 		};
 	}
 
-	private Toil PullItemFromInventory(HashSet<Thing> carriedThings, Toil wait)
+	private Toil PullItemFromInventory(CompHauledToInventory hauledToInventoryComp, Toil wait)
 	{
 		return new()
 		{
+			debugName = nameof(PullItemFromInventory),
 			initAction = () =>
 			{
 				var thing = job.GetTarget(TargetIndex.A).Thing;
+				hauledToInventoryComp.UnregisterHauledItem(thing);
 				if (thing == null || !pawn.inventory.innerContainer.Contains(thing))
 				{
-					carriedThings.Remove(thing);
 					pawn.jobs.curDriver.JumpToToil(wait);
 					return;
 				}
 				if (!pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation) || !thing.def.EverStorable(false))
 				{
-					Log.Message($"Pawn {pawn} incapable of hauling, dropping {thing}");
+					Log.Message($"{pawn} incapable of hauling, dropping {thing}:{thing.stackCount}");
 					pawn.inventory.innerContainer.TryDrop(thing, ThingPlaceMode.Near, _countToDrop, out thing);
-					EndJobWith(JobCondition.Succeeded);
-					carriedThings.Remove(thing);
 				}
 				else
 				{
@@ -99,7 +99,6 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 						_countToDrop, out thing);
 					job.count = _countToDrop;
 					job.SetTarget(TargetIndex.A, thing);
-					carriedThings.Remove(thing);
 				}
 
 				if (ModCompatibilityCheck.CombatExtendedIsActive)
@@ -112,26 +111,25 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 		};
 	}
 
-	private Toil FindTargetOrDrop(HashSet<Thing> carriedThings)
+	private Toil FindTargetOrDrop(CompHauledToInventory hauledToInventoryComp)
 	{
 		return new()
 		{
+			debugName = nameof(FindTargetOrDrop),
 			initAction = () =>
 			{
-				var unloadableThing = FirstUnloadableThing(pawn, carriedThings);
+				var unloadableThing = FirstUnloadableThingWithDestination(pawn, hauledToInventoryComp, out var cell, out var destination);
 
-				if (unloadableThing.Count == 0)
+				if (unloadableThing.count == 0)
 				{
-					if (carriedThings.Count == 0)
+					if (hauledToInventoryComp.IsEmpty())
 					{
 						EndJobWith(JobCondition.Succeeded);
 					}
 					return;
 				}
 
-				var currentPriority = StoragePriority.Unstored; // Currently in pawns inventory, so it's unstored
-				if (StoreUtility.TryFindBestBetterStorageFor(unloadableThing.Thing, pawn, pawn.Map, currentPriority,
-					    pawn.Faction, out var cell, out var destination))
+				if (destination != null || cell != IntVec3.Invalid)
 				{
 					job.SetTarget(TargetIndex.A, unloadableThing.Thing);
 					if (cell == IntVec3.Invalid)
@@ -143,55 +141,203 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 						job.SetTarget(TargetIndex.B, cell);
 					}
 
-					Log.Message($"{pawn} found destination {job.targetB} for thing {unloadableThing.Thing}");
-					if (!pawn.Map.reservationManager.Reserve(pawn, job, job.targetB))
+					Log.Message($"{pawn} found destination {job.targetB} for thing {unloadableThing.Thing}:{unloadableThing.count}");
+					if (!pawn.Map.reservationManager.Reserve(pawn, job, job.targetB, errorOnFailed: false))
 					{
 						Log.Message(
-							$"{pawn} failed reserving destination {job.targetB}, dropping {unloadableThing.Thing}");
+							$"{pawn} failed reserving destination {job.targetB}, dropping {unloadableThing.Thing}:{unloadableThing.count}");
 						pawn.inventory.innerContainer.TryDrop(unloadableThing.Thing, ThingPlaceMode.Near,
-							unloadableThing.Thing.stackCount, out _);
-						EndJobWith(JobCondition.Incompletable);
+							unloadableThing.count, out _);
 						return;
 					}
-					_countToDrop = unloadableThing.Thing.stackCount;
+					_countToDrop = unloadableThing.count;
+					return;
 				}
-				else
-				{
-					Log.Message(
-						$"Pawn {pawn} unable to find hauling destination, dropping {unloadableThing.Thing}");
-					pawn.inventory.innerContainer.TryDrop(unloadableThing.Thing, ThingPlaceMode.Near,
-						unloadableThing.Thing.stackCount, out _);
-					EndJobWith(JobCondition.Succeeded);
-				}
+
+				Log.Message($"{pawn} unable to find hauling destination, dropping {unloadableThing.Thing}:{unloadableThing.count}");
+				pawn.inventory.innerContainer.TryDrop(unloadableThing.Thing, ThingPlaceMode.Near, unloadableThing.count, out _);
 			}
 		};
 	}
 
-	private static ThingCount FirstUnloadableThing(Pawn pawn, HashSet<Thing> carriedThings)
+	private static ThingCount FirstUnloadableThingWithDestination(Pawn pawn, CompHauledToInventory hauledToInventoryComp, out IntVec3 foundCell, out IHaulDestination foundDestination)
 	{
-		var innerPawnContainer = pawn.inventory.innerContainer;
-
-		foreach (var thing in carriedThings.OrderBy(t => t.def.FirstThingCategory?.index).ThenBy(x => x.def.defName))
+		foundCell = IntVec3.Invalid;
+		foundDestination = null;
+		if (hauledToInventoryComp.IsEmpty())
 		{
+			return default;
+		}
+
+		var pendingDrops = hauledToInventoryComp.GetHashSet();
+		var innerPawnContainer = pawn.inventory.innerContainer;
+		var inventory = new HashSet<Thing>(innerPawnContainer);
+		var candidates = new List<(Thing,IntVec3,IHaulDestination)>(innerPawnContainer.Count);
+		(Thing, IntVec3, IHaulDestination) instantDropCandidate = default;
+		var pickFirstMatch = !Settings.ScanForClosestBestDestination;
+
+		var noStorageFree = true;
+		foreach (var thing in pendingDrops.OrderBy(t => t.def.FirstThingCategory?.index ?? -1).ThenBy(x => x.def.defName))
+		{
+			Thing candidate;
 			//find the overlap.
-			if (!innerPawnContainer.Contains(thing))
+			if (inventory.Contains(thing))
+			{
+				candidate = thing;
+			}
+			else
 			{
 				//merged partially picked up stacks get a different thingID in inventory
-				var stragglerDef = thing.def;
-				carriedThings.Remove(thing);
-
 				//we have no method of grabbing the newly generated thingID. This is the solution to that.
-				for (var i = 0; i < innerPawnContainer.Count; i++)
+				hauledToInventoryComp.UnregisterHauledItem(thing);
+				candidate = null;
+				var stragglerDef = thing.def;
+				foreach (var dirtyStraggler in innerPawnContainer)
 				{
-					var dirtyStraggler = innerPawnContainer[i];
 					if (dirtyStraggler.def == stragglerDef)
 					{
-						return new ThingCount(dirtyStraggler, dirtyStraggler.stackCount);
+						candidate = thing;
+						break;
 					}
 				}
+
+				if (candidate == null)
+				{
+					continue;
+				}
 			}
-			return new ThingCount(thing, thing.stackCount);
+
+			var isInvalid = true;
+			if (StoreUtility.TryFindBestBetterStorageFor(
+					candidate,
+					pawn,
+					pawn.Map,
+					StoragePriority.Unstored,
+					pawn.Faction,
+					out var cell,
+					out var haulDestination,
+					true
+				))
+			{
+				if (haulDestination is Zone haulZone)
+				{
+					// zones stockpiles return a random cell. so pick the closest cell for the pawn instead of what was provided
+					var i = PickNearestInCellList(haulZone.cells, pawn, candidate);
+					if (i != -1)
+					{
+						Log.Info($"{pawn} when unloading, found valid zone for {candidate}");
+						isInvalid = false;
+						noStorageFree = false;
+						cell = haulZone.cells[i];
+						candidates.Add((candidate, cell, haulDestination));
+					}
+				}
+				else if (haulDestination is Thing || cell != IntVec3.Invalid)
+				{
+					Log.Info($"{pawn} on when unloading, found validate hauling destination for {candidate}");
+					isInvalid = false;
+					noStorageFree = false;
+					candidates.Add((candidate, cell, haulDestination));
+				}
+			}
+
+			if (isInvalid)
+			{
+				Log.Info($"{pawn} on when unloading, could not find a destination for {candidate}");
+				// Nowhere to store it; PUAH drops it on the spot, which costs no travel.
+				instantDropCandidate = (candidate, IntVec3.Invalid, null);
+			}
+
+			if (pickFirstMatch)
+			{
+				break;
+			}
 		}
-		return default;
+
+		if (candidates.Count == 0)
+		{
+			if (instantDropCandidate.Item1 != null)
+			{
+				foundCell = instantDropCandidate.Item2;
+				foundDestination = instantDropCandidate.Item3;
+
+				return new ThingCount(instantDropCandidate.Item1, instantDropCandidate.Item1.stackCount);
+			}
+
+			// Nothing in the hauled to inventory list matches the pawn's inventory, just clear it as it is obviously badly out of sync
+			hauledToInventoryComp.Clear();
+			return default;
+		}
+
+		var index = noStorageFree ? 0 : PickNearest(candidates, pawn.Position);
+		var chosen = candidates[index];
+		foundCell = chosen.Item2;
+		foundDestination = chosen.Item3;
+
+		return new ThingCount(chosen.Item1, chosen.Item1.stackCount);
+	}
+
+	private static int PickNearestInCellList(IReadOnlyList<IntVec3> destinations, Pawn pawn, Thing thingToPlace)
+	{
+		var best = -1;
+		var bestDistance = int.MaxValue;
+		var stackLimit = thingToPlace.def.stackLimit;
+		var map = pawn.Map;
+		var reservations = map.reservationManager;
+		var from = pawn.Position;
+		for (var i = 0; i < destinations.Count; i++)
+		{
+			var cell = destinations[i];
+			var distance = (cell - from).LengthHorizontalSquared;
+			if (distance < bestDistance && reservations.CanReserve(pawn, cell, 1, thingToPlace.stackCount))
+			{
+				var cellThings = cell.GetThingList(map);
+
+				if (stackLimit > 1)
+				{
+					var canNotMerge = true;
+					foreach (var cellThing in cellThings)
+					{
+						if (cellThing.CanStackWith(thingToPlace) && thingToPlace.stackCount + cellThing.stackCount < stackLimit)
+						{
+							canNotMerge = false;
+							break;
+						}
+					}
+
+					if (canNotMerge)
+					{
+						continue;
+					}
+				}
+				else if (cellThings.Count > 0)
+				{
+					continue;
+				}
+
+				bestDistance = distance;
+				best = i;
+			}
+		}
+
+		return best;
+	}
+
+	private static int PickNearest(IReadOnlyList<(Thing,IntVec3, IHaulDestination)> destinations, IntVec3 from)
+	{
+		var best = 0;
+		var bestDistance = int.MaxValue;
+		for (var i = 0; i < destinations.Count; i++)
+		{
+			var cell = destinations[i].Item2.IsValid ? destinations[i].Item2 : (destinations[i].Item3 as Thing)?.Position ?? throw new Exception("PickNearest precondition failed");
+			var distance = (cell - from).LengthHorizontalSquared;
+			if (distance < bestDistance)
+			{
+				bestDistance = distance;
+				best = i;
+			}
+		}
+
+		return best;
 	}
 }
