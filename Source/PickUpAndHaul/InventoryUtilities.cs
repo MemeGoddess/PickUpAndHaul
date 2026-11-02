@@ -93,22 +93,55 @@ public static class InventoryUtilities
 				return false;
 			}
 
-			var shouldMerge = comp.GetHashSet().Any(x => x.def == thing.def);
 			// always use splitOff as this avoids needing to touch TryTransferToContainer which behaves very differently to TryAdd in its failure modes
 			var splitThing = thing.SplitOff(countToPickUp);
-			remainingToPickup = thing.stackCount;
-			if (!inventory.TryAdd(splitThing, shouldMerge))
+			Log.Message($"{pawn} checking to merge {splitThing} into existing stacks");
+			// manually handle merging, as the ThingOwner API does not permit determining where the merged stacks went or if a new item is added
+			// this ensures non-hauled stacks are left untouched
+			for (var i = inventory.Count - 1; i >= 0 ; i--)
 			{
-				Log.Message($"{pawn} failed to stash {thing}:{countToPickUp} into inventory");
-				// prevent retries
-				remainingToPickup = 0;
-				return false;
+				var inventoryThing = inventory[i];
+				var count = splitThing.stackCount;
+				if (inventoryThing.def != splitThing.def || !comp.Contains(inventoryThing) || !inventoryThing.TryAbsorbStack(splitThing, true))
+				{
+					continue;
+				}
+				Log.Message($"{pawn} inventoryThing:{inventoryThing} absorbed:{count - splitThing.stackCount}");
+				if (splitThing.stackCount <= 0 || splitThing.Destroyed)
+				{
+					break;
+				}
 			}
 
-			// on merge; splitThing.stackCount can be between 0 and countToPickUp
-			// the ThingOwner API does not permit determining where the merged stacks went
-			comp.RegisterHauledItem(splitThing);
+			if (splitThing.stackCount > 0 && !splitThing.Destroyed)
+			{
+				var count = splitThing.stackCount;
+				Log.Message($"{pawn} {splitThing}:{splitThing.stackCount} to add as a new item");
+				if (inventory.TryAdd(splitThing, false))
+				{
+					comp.RegisterHauledItem(splitThing);
+				}
+				else
+				{
+					// this *really* shouldn't happen, but drop to the floor to stop the resource from disappearing
+					if (splitThing.stackCount > 0)
+					{
+						Log.Message($"{pawn} failed to stash {splitThing}:{splitThing.stackCount} into inventory, dropping to ground");
+						GenPlace.TryPlaceThing(splitThing, pawn.Position, pawn.Map, ThingPlaceMode.Near, out var placed);
+					}
+					else
+					{
+						// *really* shouldn't be a partial stack left!
+						Log.Message($"{pawn} failed to stash {thing}:{count - splitThing.stackCount} into inventory");
+					}
 
+					// prevent retries
+					remainingToPickup = 0;
+					return false;
+				}
+			}
+
+			remainingToPickup = thing.stackCount;
 			CompatHelper.UpdateInventory(pawn);
 
 			Log.Message($"{pawn} stash {thing}:{countToPickUp} into inventory");

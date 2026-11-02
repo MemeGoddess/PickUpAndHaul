@@ -182,31 +182,14 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 		foreach (var thing in pendingDrops.OrderBy(t => t.def.FirstThingCategory?.index ?? -1).ThenBy(x => x.def.defName))
 		{
 			Thing candidate;
-			//find the overlap.
 			if (inventory.Contains(thing))
 			{
 				candidate = thing;
 			}
 			else
 			{
-				//merged partially picked up stacks get a different thingID in inventory
-				//we have no method of grabbing the newly generated thingID. This is the solution to that.
 				hauledToInventoryComp.UnregisterHauledItem(thing);
-				candidate = null;
-				var stragglerDef = thing.def;
-				foreach (var dirtyStraggler in innerPawnContainer)
-				{
-					if (dirtyStraggler.def == stragglerDef)
-					{
-						candidate = dirtyStraggler;
-						break;
-					}
-				}
-
-				if (candidate == null)
-				{
-					continue;
-				}
+				continue;
 			}
 
 			var isInvalid = true;
