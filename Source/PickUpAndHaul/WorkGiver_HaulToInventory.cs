@@ -1,3 +1,4 @@
+using PickUpAndHaul.Deliveries;
 using System.Linq;
 
 namespace PickUpAndHaul;
@@ -124,18 +125,12 @@ public partial class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 			return HaulAIUtility.HaulToStorageJob(pawn, thing, forced);
 		}
 
-		var job = JobMaker.MakeJob(JobDefOfs.HaulToInventory, null, storeTarget);   //Things will be in queues
 		Log.Message($"-------------------------------------------------------------------");
 		Log.Message($"------------------------------------------------------------------");//different size so the log doesn't count it 2x
 		Log.Message($"{pawn} job found to haul: {thing} to {storeTarget}:{capacityStoreCell}, looking for more now");
 
 		//Find what fits in inventory, set nextThingLeftOverCount to be
-		var nextThingLeftOverCount = 0;
 		var encumberance = MassUtility.EncumbrancePercent(pawn);
-		job.targetQueueA = new List<LocalTargetInfo>(); //more things
-		job.targetQueueB = new List<LocalTargetInfo>(); //more storage; keep in mind the job doesn't use it, but reserve it so you don't over-haul
-		job.countQueue = new List<int>();//thing counts
-
 		var ceOverweight = false;
 
 		if (ModCompatibilityCheck.CombatExtendedIsActive)
@@ -158,10 +153,6 @@ public partial class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 		var nextThing = thing;
 		var lastThing = thing;
 
-		var storeCellCapacity = new Dictionary<StoreTarget, CellAllocation>()
-		{
-			[storeTarget] = new(nextThing, capacityStoreCell)
-		};
 		//skipTargets = new() { storeTarget };
 		skipCells = new();
 		skipThings = new();
@@ -179,10 +170,13 @@ public partial class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 			&& GoodThingToHaul(t, pawn) && HaulAIUtility.PawnCanAutomaticallyHaulFast(pawn, t, false); //forced is false, may differ from first thing
 
 		var traverseParms = TraverseParms.For(pawn);
-
+		var planner = new DeliveryPlanner(pawn);
+		// 1st destination should be in the destination list for consistent reserve handling (and later counts handling)
+		planner.deliverList.Add(storeTarget);
+		planner.storeCellCapacity[storeTarget] = new(nextThing, capacityStoreCell);
 		do
 		{
-			if (AllocateThingAtCell(storeCellCapacity, pawn, nextThing, job))
+			if (SchedulePickupAndDeliveryFor(planner, nextThing))
 			{
 				lastThing = nextThing;
 				encumberance += AddedEncumberance(pawn, nextThing);
@@ -190,10 +184,10 @@ public partial class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 				if (encumberance > 1 || ceOverweight)
 				{
 					//can't CountToPickUpUntilOverEncumbered here, pawn doesn't actually hold these things yet
-					nextThingLeftOverCount = CountPastCapacity(pawn, nextThing, encumberance);
+					var nextThingLeftOverCount = CountPastCapacity(pawn, nextThing, encumberance);
 					Log.Message($"{pawn} Inventory allocated, will carry {nextThing}:{nextThingLeftOverCount}");
-					job.countQueue.Pop();
-					job.countQueue.Add(nextThingLeftOverCount);
+
+					planner.pickupList[^1].capacity = nextThingLeftOverCount;
 
 					// We are now out of inventory space - and should bail right away.
 					break;
@@ -205,7 +199,8 @@ public partial class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
 		skipCells = null;
 		skipThings = null;
-		return job;
+
+		return planner.MakeJob();
 	}
 
 	private static bool HaulToHopperJob(Thing thing, IntVec3 targetCell, Map map)
@@ -283,16 +278,10 @@ public partial class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 		return null;
 	}
 
-	public class CellAllocation
+	public class CellAllocation(Thing a, int c)
 	{
-		public Thing allocated;
-		public int capacity;
-
-		public CellAllocation(Thing a, int c)
-		{
-			allocated = a;
-			capacity = c;
-		}
+		public Thing allocated = a;
+		public int capacity = c;
 	}
 
 	public static int CapacityAt(Thing thing, IntVec3 storeCell, Map map)
@@ -311,9 +300,11 @@ public partial class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 		|| allocation.Value.allocated.CanStackWith(nextThing)
 		|| HoldMultipleThings_Support.StackableAt(nextThing, allocation.Key.cell, nextThing.Map);
 
-	public static bool AllocateThingAtCell(Dictionary<StoreTarget, CellAllocation> storeCellCapacity, Pawn pawn, Thing nextThing, Job job)
+	public static bool SchedulePickupAndDeliveryFor(DeliveryPlanner planner, Thing nextThing)
 	{
+		var pawn = planner.pawn;
 		var map = pawn.Map;
+		var storeCellCapacity = planner.storeCellCapacity;
 		var allocation = storeCellCapacity.FirstOrDefault(kvp =>
 			kvp.Key is var storeTarget
 			&& (storeTarget.container?.TryGetInnerInteractableThingOwner().CanAcceptAnyOf(nextThing)
@@ -330,7 +321,7 @@ public partial class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 				if (innerInteractableThingOwner is null)
 				{
 					storeCell = new(nextStoreCell);
-					job.targetQueueB.Add(nextStoreCell);
+					planner.deliverList.Add(storeCell);
 
 					storeCellCapacity[storeCell] = new(nextThing, CapacityAt(nextThing, nextStoreCell, map));
 
@@ -340,7 +331,7 @@ public partial class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 				{
 					var destinationAsThing = (Thing)haulDestination;
 					storeCell = new(destinationAsThing);
-					job.targetQueueB.Add(destinationAsThing);
+					planner.deliverList.Add(storeCell);
 
 					storeCellCapacity[storeCell] = new(nextThing, innerInteractableThingOwner.GetCountCanAccept(nextThing));
 
@@ -355,7 +346,6 @@ public partial class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 			}
 		}
 
-		job.targetQueueA.Add(nextThing);
 		var count = nextThing.stackCount;
 		storeCellCapacity[storeCell].capacity -= count;
 		Log.Message($"{pawn} allocating {nextThing}:{count}, now {storeCell}:{storeCellCapacity[storeCell].capacity}");
@@ -377,7 +367,7 @@ public partial class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 				if (innerInteractableThingOwner is null)
 				{
 					storeCell = new(nextStoreCell);
-					job.targetQueueB.Add(nextStoreCell);
+					planner.deliverList.Add(storeCell);
 
 					var capacity = CapacityAt(nextThing, nextStoreCell, map) - capacityOver;
 					storeCellCapacity[storeCell] = new(nextThing, capacity);
@@ -388,7 +378,7 @@ public partial class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 				{
 					var destinationAsThing = (Thing)nextHaulDestination;
 					storeCell = new(destinationAsThing);
-					job.targetQueueB.Add(destinationAsThing);
+					planner.deliverList.Add(storeCell);
 
 					var capacity = innerInteractableThingOwner.GetCountCanAccept(nextThing) - capacityOver;
 
@@ -400,12 +390,12 @@ public partial class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 			else
 			{
 				count -= capacityOver;
-				job.countQueue.Add(count);
+				planner.pickupList.Add(new CellAllocation(nextThing, count));
 				Log.Message($"{pawn} Nowhere else to store, allocated {nextThing}:{count}");
 				return false;
 			}
 		}
-		job.countQueue.Add(count);
+		planner.pickupList.Add(new CellAllocation(nextThing, count));
 		Log.Message($"{pawn} {nextThing}:{count} allocated");
 		return true;
 	}
