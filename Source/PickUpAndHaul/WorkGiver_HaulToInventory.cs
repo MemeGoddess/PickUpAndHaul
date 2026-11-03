@@ -200,6 +200,8 @@ public partial class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 		skipCells = null;
 		skipThings = null;
 
+		planner.SortPawnMovements(thing.Position);
+
 		return planner.MakeJob();
 	}
 
@@ -220,7 +222,7 @@ public partial class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 		return false;
 	}
 
-	public struct StoreTarget : IEquatable<StoreTarget>
+	public struct StoreTarget : IEquatable<StoreTarget>, IPositionable
 	{
 		public IntVec3 cell;
 		public Thing container;
@@ -278,10 +280,11 @@ public partial class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 		return null;
 	}
 
-	public class CellAllocation(Thing a, int c)
+	public class CellAllocation(Thing a, int c): IPositionable
 	{
 		public Thing allocated = a;
 		public int capacity = c;
+		public IntVec3 Position => allocated.Position;
 	}
 
 	public static int CapacityAt(Thing thing, IntVec3 storeCell, Map map)
