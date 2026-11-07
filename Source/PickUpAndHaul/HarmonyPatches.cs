@@ -102,6 +102,9 @@ static class HarmonyPatches
 		harmony.Patch(AccessTools.Method(typeof(JobGiver_Haul), nameof(JobGiver_Haul.TryGiveJob)),
 			transpiler: new(typeof(HarmonyPatches), nameof(JobGiver_Haul_TryGiveJob_Transpiler)));
 
+		harmony.Patch(AccessTools.Method(typeof(ThingOwner<Thing>), nameof(ThingOwner.TryAdd), new[] { typeof(Thing), typeof(bool) }),
+			prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(InventoryTryAdd_Prefix)));
+
 		var stashInventoryOnDropTranspiler = new HarmonyMethod(typeof(HarmonyPatches), nameof(StashToInventoryOnDropTranspiler));
 		foreach (var (type, methodPrefix, featureFlag) in knownMethodsWhichTriggerCarryDrops)
 		{
@@ -247,6 +250,61 @@ static class HarmonyPatches
 		{
 			__result = true;
 			return false;
+		}
+
+		return true;
+	}
+
+
+	/// <summary>
+	/// Credit to zzyxzz's continuation/fork, adjusted to remove multiple loops over the ThingOwner
+	/// </summary>
+	private static bool InventoryTryAdd_Prefix(ThingOwner __instance, Thing item, ref bool canMergeWithExistingStacks, ref bool __result)
+	{
+		if (!canMergeWithExistingStacks || item == null || __instance.Owner is not Pawn_InventoryTracker tracker || item.holdingOwner != null)
+		{
+			return true;
+		}
+
+		var hauled = tracker.pawn.HauledToInventoryComp();
+		if (hauled == null || hauled.IsEmpty())
+		{
+			return true;
+		}
+
+		for (var i = 0; i < __instance.Count; i++)
+		{
+			var held = __instance.GetAt(i);
+			if (held == item || !held.CanStackWith(item))
+			{
+				continue;
+			}
+
+			if (hauled.Contains(held))
+			{
+				canMergeWithExistingStacks = false;
+				continue;
+			}
+
+			var space = Mathf.Min(item.stackCount, held.def.stackLimit - held.stackCount);
+			if (space <= 0)
+			{
+				continue;
+			}
+
+			canMergeWithExistingStacks = false;
+			var before = held.stackCount;
+			held.TryAbsorbStack(item.SplitOff(space), true);
+			if (held.stackCount > before)
+			{
+				__instance.NotifyAddedAndMergedWith(held, held.stackCount - before);
+			}
+
+			if (item.Destroyed || item.stackCount == 0)
+			{
+				__result = true;
+				return false;
+			}
 		}
 
 		return true;
