@@ -14,6 +14,10 @@ public class CompHauledToInventory : ThingComp
 	{
 		base.PostDestroy(mode, previousMap);
 		takenToInventory.Clear();
+		if (parent is Pawn pawn)
+		{
+			pawn.HauledToInventoryCompField = null;
+		}
 	}
 
 	public void RegisterHauledItem(Thing thing)
