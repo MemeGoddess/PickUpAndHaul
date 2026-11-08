@@ -132,32 +132,33 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 					return;
 				}
 
-				if (destination != null || cell != IntVec3.Invalid)
+				// if/else if order matters, as the cell has priority over using a thing as destination!
+				if (cell != IntVec3.Invalid)
 				{
-					job.SetTarget(TargetIndex.A, unloadableThing.Thing);
-					if (cell == IntVec3.Invalid)
-					{
-						job.SetTarget(TargetIndex.B, destination as Thing);
-					}
-					else
-					{
-						job.SetTarget(TargetIndex.B, cell);
-					}
-
-					Log.Message($"{pawn} found destination {job.targetB} for thing {unloadableThing.Thing}:{unloadableThing.count}");
-					if (!pawn.Map.reservationManager.Reserve(pawn, job, job.targetB, errorOnFailed: false))
-					{
-						Log.Message(
-							$"{pawn} failed reserving destination {job.targetB}, dropping {unloadableThing.Thing}:{unloadableThing.count}");
-						pawn.TryDropThing(unloadableThing.Thing, unloadableThing.count);
-						return;
-					}
-					job.count = unloadableThing.count;
+					job.SetTarget(TargetIndex.B, cell);
+				}
+				else if (destination is Thing destThing)
+				{
+					job.SetTarget(TargetIndex.B, destThing);
+				}
+				else
+				{
+					Log.Message($"{pawn} unable to find hauling destination, dropping {unloadableThing.Thing}:{unloadableThing.count}");
+					pawn.TryDropThing(unloadableThing.Thing, unloadableThing.count);
 					return;
 				}
 
-				Log.Message($"{pawn} unable to find hauling destination, dropping {unloadableThing.Thing}:{unloadableThing.count}");
-				pawn.TryDropThing(unloadableThing.Thing, unloadableThing.count);
+				if (!pawn.Map.reservationManager.Reserve(pawn, job, job.targetB, errorOnFailed: false))
+				{
+					Log.Message(
+						$"{pawn} failed reserving destination {job.targetB}, dropping {unloadableThing.Thing}:{unloadableThing.count}");
+					pawn.TryDropThing(unloadableThing.Thing, unloadableThing.count);
+					return;
+				}
+
+				Log.Message($"{pawn} found destination {job.targetB} for thing {unloadableThing.Thing}:{unloadableThing.count}");
+				job.SetTarget(TargetIndex.A, unloadableThing.Thing);
+				job.count = unloadableThing.count;
 			}
 		};
 	}
