@@ -4,14 +4,9 @@ namespace PickUpAndHaul;
 
 public class JobDriver_UnloadYourHauledInventory : JobDriver
 {
+	[Obsolete]
 	private int _countToDrop = -1;
 	private int _unloadDuration = 3;
-
-	public override void ExposeData()
-	{
-		base.ExposeData();
-		Scribe_Values.Look<int>(ref _countToDrop, "countToDrop", -1);
-	}
 
 	public override bool TryMakePreToilReservations(bool errorOnFailed) => true;
 
@@ -91,14 +86,23 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 				if (!pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation) || !thing.def.EverStorable(false))
 				{
 					Log.Message($"{pawn} incapable of hauling, dropping {thing}:{thing.stackCount}");
-					pawn.TryDropThing(thing, _countToDrop);
+					pawn.TryDropThing(thing, job.count);
 					EndJobWith(JobCondition.Incompletable);
 					return;
 				}
 
-				pawn.inventory.innerContainer.TryTransferToContainer(thing, pawn.carryTracker.innerContainer, _countToDrop, out thing);
-				job.count = _countToDrop;
-				job.SetTarget(TargetIndex.A, thing);
+				pawn.inventory.innerContainer.TryTransferToContainer(thing, pawn.carryTracker.innerContainer, job.count, out var carriedThing);
+				if (carriedThing == null)
+				{
+					Log.Message($"{pawn} Failed to move {thing}:{job.count} into hands");
+					EndJobWith(JobCondition.Incompletable);
+					return;
+				}
+
+				Log.Message($"{pawn} moved {carriedThing}:{carriedThing.stackCount} into hands");
+				job.SetTarget(TargetIndex.A, carriedThing);
+				job.count = carriedThing.stackCount;
+
 				CompatHelper.UpdateInventory(pawn);
 			}
 		};
@@ -111,6 +115,10 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 			debugName = nameof(FindTargetOrDrop),
 			initAction = () =>
 			{
+				// reset to a known good-state
+				job.SetTarget(TargetIndex.A, null);
+				job.count = 0;
+
 				var unloadableThing = FirstUnloadableThingWithDestination(pawn, hauledToInventoryComp, out var cell, out var destination);
 
 				if (unloadableThing.count == 0)
@@ -142,7 +150,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 						pawn.TryDropThing(unloadableThing.Thing, unloadableThing.count);
 						return;
 					}
-					_countToDrop = unloadableThing.count;
+					job.count = unloadableThing.count;
 					return;
 				}
 
