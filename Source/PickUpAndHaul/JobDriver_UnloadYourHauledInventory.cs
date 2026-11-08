@@ -132,6 +132,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 					return;
 				}
 
+				var doReservation = true;
 				// if/else if order matters, as the cell has priority over using a thing as destination!
 				if (cell != IntVec3.Invalid)
 				{
@@ -140,6 +141,26 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 				else if (destination is Thing destThing)
 				{
 					job.SetTarget(TargetIndex.B, destThing);
+					if (destThing is IHaulEnroute container)
+					{
+						doReservation = false;
+						// copied from JobDriver_HaulToContainer::UpdateTracker
+						// however GetSpaceRemainingWithEnroute() mixes stack counts and stack sizes!
+						// so it can't be used to vary the delivery size
+						var thingDef = unloadableThing.Thing.def;
+						var spaceRemaining = container.GetSpaceRemainingWithEnroute(thingDef);
+						if (job.playerForced && spaceRemaining == 0)
+						{
+							container.Map.enrouteManager.InterruptEnroutePawns(container, pawn);
+							spaceRemaining = container.GetSpaceRemainingWithEnroute(thingDef);
+						}
+
+						var num = Mathf.Min(unloadableThing.count, spaceRemaining);
+						if (num > 0)
+						{
+							container.Map.enrouteManager.AddEnroute(container, pawn, thingDef, num);
+						}
+					}
 				}
 				else
 				{
@@ -148,7 +169,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 					return;
 				}
 
-				if (!pawn.Map.reservationManager.Reserve(pawn, job, job.targetB, errorOnFailed: false))
+				if (doReservation && !pawn.Map.reservationManager.Reserve(pawn, job, job.targetB, errorOnFailed: false))
 				{
 					Log.Message(
 						$"{pawn} failed reserving destination {job.targetB}, dropping {unloadableThing.Thing}:{unloadableThing.count}");
