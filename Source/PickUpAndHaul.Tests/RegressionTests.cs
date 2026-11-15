@@ -106,6 +106,7 @@ public class RegressionTests
 		{
 			Test.Fail("Items put in the wrong storage spot");
 		}
+		cleanup.AddRange(shelf.GetSlotGroup().HeldThings);
 	}
 
 	[Test]
@@ -119,7 +120,6 @@ public class RegressionTests
 			.AsBuilder().WithName("Overseer")
 			.WithMech(agrihandDef).Spawn();
 		overseer.drafter.Drafted = true;
-		var mech = map.mapPawns.SpawnedColonyMechs.FirstOrDefault(x => x.kindDef == agrihandDef);
 
 		var hydroDef = ThingDefOf.HydroponicsBasin;
 		var hydro = (Building_PlantGrower)GenSpawn.Spawn(hydroDef, center + new IntVec3(5, 0, 0), map);
@@ -127,7 +127,7 @@ public class RegressionTests
 		(hydro.PowerComp as CompPowerTrader).PowerOn = true;
 		
 		var stockpileCells = GenRadial.RadialCellsAround(center - new IntVec3(5, 0, 0), 0, 4).ToArray();
-		var stockpile = map.DEV_CreateStockpileFromCells(stockpileCells);
+		stockpile = map.DEV_CreateStockpileFromCells(stockpileCells);
 		var shelf = (Building_Storage)ThingMaker.MakeThing(ThingDefOf.Shelf, GenStuff.DefaultStuffFor(ThingDefOf.Shelf));
 		GenSpawn.Spawn(shelf, center -  new IntVec3(5, 0, 0), map);
 		shelf.SetFaction(Faction.OfPlayer);
@@ -151,7 +151,56 @@ public class RegressionTests
 		{
 			if (shelf.GetSlotGroup().HeldThingsCount <= 0)
 			{
-				return cells.All(x => x.GetItems(map).Any(y => y.def == psychoidPlant));
+				return cells.All(x => x.GetFirstThing<Plant>(map)?.def == psychoidPlant);
+			}
+
+			Test.Fail("Shelf had items before everything was harvested");
+			return true;
+		});
+		cleanup.AddRange(shelf.GetSlotGroup().HeldThings);
+	}
+	
+	[Test]
+	public IEnumerator CuttingPlantShouldntUnloadHuman()
+	{
+		var map = Find.CurrentMap;
+		var center = map.Center;
+		
+		var hauler = PawnKindDefOf.Colonist
+			.AsBuilder().WithName("Hauler")
+			.WithWorkMaxed(WorkTypeDefOf.Hauling, WorkTypeDefOf.Growing).Spawn();
+
+		var hydroDef = ThingDefOf.HydroponicsBasin;
+		var hydro = (Building_PlantGrower)GenSpawn.Spawn(hydroDef, center + new IntVec3(5, 0, 0), map);
+		hydro.SetFaction(Faction.OfPlayer);
+		(hydro.PowerComp as CompPowerTrader).PowerOn = true;
+		
+		var stockpileCells = GenRadial.RadialCellsAround(center - new IntVec3(5, 0, 0), 0, 4).ToArray();
+		stockpile = map.DEV_CreateStockpileFromCells(stockpileCells);
+		var shelf = (Building_Storage)ThingMaker.MakeThing(ThingDefOf.Shelf, GenStuff.DefaultStuffFor(ThingDefOf.Shelf));
+		GenSpawn.Spawn(shelf, center -  new IntVec3(5, 0, 0), map);
+		shelf.SetFaction(Faction.OfPlayer);
+
+		var cottonPlant = ThingDef.Named("Plant_Cotton");
+		var psychoidPlant = ThingDef.Named("Plant_Psychoid");
+		
+		hydro.SetPlantDefToGrow(cottonPlant);
+		var cells = hydro.OccupiedRect();
+		yield return new WaitUntilTimeout(() => cells.All(x => x.GetThingList(map).Any(y => y.def == cottonPlant && (y is Plant { sown: true, LifeStage: PlantLifeStage.Growing }) )));
+		
+		Log.Message("force growth now");
+		foreach (var cell in cells)
+		{
+			var plant = (Plant)cell.GetThingList(map).FirstOrDefault(x => x.def == cottonPlant);
+			plant.Growth = 0.9f;
+		}
+		hydro.SetPlantDefToGrow(psychoidPlant);
+
+		yield return new WaitUntilTimeout(() =>
+		{
+			if (shelf.GetSlotGroup().HeldThingsCount <= 0)
+			{
+				return cells.All(x => x.GetFirstThing<Plant>(map)?.def == psychoidPlant);
 			}
 
 			Test.Fail("Shelf had items before everything was harvested");

@@ -89,6 +89,11 @@ public class BillDropStashTests
 		steel.Destroy();
 		steel = null;
 		
+		foreach (var heldThing in shelf.GetSlotGroup().HeldThings)
+		{
+			heldThing.Destroy();
+		}
+		
 		shelf.Destroy();
 		shelf = null;
 		
