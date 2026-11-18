@@ -582,7 +582,8 @@ static class HarmonyPatches
 		var matcher = new CodeMatcher(instructions);
 
 		// Matches;
-		//	return num;
+		//	int num = 0;
+		//	List<ThingDef> childThingDefs = ThingCategoryDefOf.xxx.childThingDefs;
 		matcher.MatchEndForward([
 			new CodeMatch(OpCodes.Ldc_I4_0),
 			new CodeMatch(OpCodes.Stloc_0),
