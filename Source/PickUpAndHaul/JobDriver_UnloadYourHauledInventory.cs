@@ -82,9 +82,9 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 			initAction = () =>
 			{
 				var thing = job.GetTarget(TargetIndex.A).Thing;
-				hauledToInventoryComp.UnregisterHauledItem(thing);
 				if (thing == null || !pawn.inventory.innerContainer.Contains(thing))
 				{
+					hauledToInventoryComp.UnregisterHauledItem(thing);
 					pawn.jobs.curDriver.JumpToToil(wait);
 					return;
 				}
@@ -99,9 +99,8 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 						_countToDrop, out thing);
 					job.count = _countToDrop;
 					job.SetTarget(TargetIndex.A, thing);
+					CompatHelper.UpdateInventory(pawn);
 				}
-
-				CompatHelper.UpdateInventory(pawn);
 			}
 		};
 	}
