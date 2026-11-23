@@ -24,9 +24,9 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 		var begin = Toils_General.Wait(_unloadDuration);
 		yield return begin;
 
-		var HauledToInventoryComp = pawn.HauledToInventoryComp();
-		yield return FindTargetOrDrop(HauledToInventoryComp);
-		yield return PullItemFromInventory(HauledToInventoryComp, begin);
+		var hauledToInventoryComp = pawn.HauledToInventoryComp();
+		yield return FindTargetOrDrop(hauledToInventoryComp);
+		yield return PullItemFromInventory(hauledToInventoryComp, begin);
 
 		var releaseReservation = ReleaseReservation();
 		var carryToCell = Toils_Haul.CarryHauledThingToCell(TargetIndex.B);
