@@ -86,9 +86,9 @@ static class HarmonyPatches
 		// colonists idle
 		harmony.Patch(original: AccessTools.Method(typeof(JobGiver_Idle), nameof(JobGiver_Idle.TryGiveJob)),
 			postfix: new HarmonyMethod(typeof(HarmonyPatches), nameof(Idle_Postfix)));
-		// mech idle
+		// mech idle (triggers between jobs)
 		harmony.Patch(original: AccessTools.Method(typeof(JobGiver_GetEnergy_Charger), nameof(JobGiver_GetEnergy.TryGiveJob)),
-			postfix: new HarmonyMethod(typeof(HarmonyPatches), nameof(Idle_Postfix)));
+			postfix: new HarmonyMethod(typeof(HarmonyPatches), nameof(GetEnergy_Charger_Postfix)));
 		// mech/animal idle
 		harmony.Patch(original: AccessTools.Method(typeof(JobGiver_Wander), nameof(JobGiver_Wander.TryGiveJob)),
 			postfix: new HarmonyMethod(typeof(HarmonyPatches), nameof(Idle_Postfix)));
@@ -207,13 +207,9 @@ static class HarmonyPatches
 		}
 	}
 
-	public static void Idle_Postfix(Pawn pawn)
-	{
-		if (pawn?.GetLord() == null)
-		{
-			pawn.CheckIfPawnShouldUnloadInventory(true);
-		}
-	}
+	public static void Idle_Postfix(Pawn pawn) => pawn.CheckIfPawnShouldUnloadInventory(true);
+
+	public static void GetEnergy_Charger_Postfix(Pawn pawn) => pawn.CheckIfPawnShouldUnloadInventory();
 
 	public static void DropUnusedInventory_PostFix(Pawn pawn) => pawn.CheckIfPawnShouldUnloadInventory();
 

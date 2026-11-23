@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Verse.AI.Group;
 
 namespace PickUpAndHaul;
 public static class PawnUnloadChecker
@@ -11,6 +12,7 @@ public static class PawnUnloadChecker
 		public bool isAutoUnloadInventoryAllowed()
 		{
 			return pawn.Faction == Faction.OfPlayerSilentFail
+			       && pawn.GetLord() == null
 			       && Settings.IsAllowedRace(pawn.RaceProps)
 			       && pawn.inventory.innerContainer != null
 			       && pawn.inventory.innerContainer.Count != 0;
