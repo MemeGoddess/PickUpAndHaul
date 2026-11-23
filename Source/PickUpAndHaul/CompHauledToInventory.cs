@@ -10,6 +10,12 @@ public class CompHauledToInventory : ThingComp
 		return takenToInventory;
 	}
 
+	public override void PostDestroy(DestroyMode mode, Map previousMap)
+	{
+		base.PostDestroy(mode, previousMap);
+		takenToInventory.Clear();
+	}
+
 	public void RegisterHauledItem(Thing thing)
 	{
 		if (thing.Destroyed || thing.stackCount == 0)
