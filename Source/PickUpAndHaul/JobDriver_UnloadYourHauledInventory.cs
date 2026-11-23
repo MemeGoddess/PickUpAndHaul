@@ -4,8 +4,10 @@ namespace PickUpAndHaul;
 
 public class JobDriver_UnloadYourHauledInventory : JobDriver
 {
+#pragma warning disable CS0414 // Field is assigned but its value is never used
 	[Obsolete]
 	private int _countToDrop = -1;
+#pragma warning restore CS0414 // Field is assigned but its value is never used
 	private int _unloadDuration = 3;
 
 	public override bool TryMakePreToilReservations(bool errorOnFailed) => true;
