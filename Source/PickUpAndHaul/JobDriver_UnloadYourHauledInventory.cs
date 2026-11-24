@@ -198,7 +198,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 				{
 					if (dirtyStraggler.def == stragglerDef)
 					{
-						candidate = thing;
+						candidate = dirtyStraggler;
 						break;
 					}
 				}
