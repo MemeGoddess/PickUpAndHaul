@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 
 namespace PickUpAndHaul;
 public class HoldMultipleThings_Support

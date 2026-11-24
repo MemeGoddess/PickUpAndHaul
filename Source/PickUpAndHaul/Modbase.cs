@@ -1,4 +1,4 @@
-﻿global using System;
+global using System;
 global using System.Collections.Generic;
 global using UnityEngine;
 global using Verse;
@@ -16,7 +16,7 @@ public class Modbase : Mod
 	}
 
 	public override void DoSettingsWindowContents(Rect inRect) => Settings.DoSettingsWindowContents(inRect);
-	public override string SettingsCategory() => "Pick Up And Haul";
+	public override string SettingsCategory() => Content.Name;
 	public static Modbase Instance { get; private set; }
 	public static Settings Settings { get; private set; }
 }

@@ -1,6 +1,15 @@
 # Remove the line below if you want to inherit .editorconfig settings from higher directories
 root = true
 
+# Specify UTF-8 without byte-order mark
+[*.{csproj,cs,xml,md,sln,slnx}]
+charset = utf-8
+
+[*.xml]
+indent_size = 4
+indent_style = tab
+tab_width = 4
+
 # C# files
 [*.cs]
 
@@ -107,11 +116,6 @@ dotnet_remove_unnecessary_suppression_exclusions = none
 
 #### C# Coding Conventions ####
 
-# var preferences (IDE0007 and IDE0008)
-csharp_style_var_elsewhere = false
-csharp_style_var_for_built_in_types = false
-csharp_style_var_when_type_is_apparent = false
-
 # Expression-bodied members
 #IDE0021
 csharp_style_expression_bodied_constructors = false
@@ -143,7 +147,6 @@ csharp_style_prefer_pattern_matching = true:silent
 
 # Code-block preferences
 #IDE0011
-csharp_prefer_braces = true:error
 #IDE0063
 csharp_prefer_simple_using_statement = true
 
