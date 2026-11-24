@@ -5,11 +5,10 @@ on:
     branches:
       - "main"
       - "master"
-      - "xon-dev"
 
 jobs:
   deploy:
     uses: node/WorkshopMods/.forgejo/workflows/pipeline.yml@main
     secrets: inherit
     with:
-      workshopId: "3526439840"
+      workshopId: "3526273433"
