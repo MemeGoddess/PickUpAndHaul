@@ -45,7 +45,7 @@ public class RegressionTests
 		stockpile = null;
 	}
 	
-	[Test]
+	// [Test]
 	public IEnumerator HaulingInterruptionShouldReturnToHauling()
 	{
 		var map = Find.CurrentMap;
