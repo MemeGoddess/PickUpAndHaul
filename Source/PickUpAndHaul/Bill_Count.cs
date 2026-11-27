@@ -21,10 +21,18 @@ public static class Bill_Count
 			var comp = pawn.HauledToInventoryComp();
 			foreach (var thing in pawn.inventory.innerContainer)
 			{
-				if (comp.Contains(thing) && worker.CountValidThing(thing.GetInnerIfMinified(), bill, thingDef))
+				if (!comp.Contains(thing))
 				{
-					count += thing.stackCount;
+					continue;
 				}
+
+				var wrappedThing = thing.GetInnerIfMinified();
+				if (!worker.CountValidThing(wrappedThing, bill, thingDef))
+				{
+					continue;
+				}
+
+				count += wrappedThing.stackCount;
 			}
 		}
 		return count;
