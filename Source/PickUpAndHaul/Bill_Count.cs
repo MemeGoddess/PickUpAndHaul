@@ -19,6 +19,13 @@ public static class Bill_Count
 			}
 
 			var comp = pawn.HauledToInventoryComp();
+			// for normal colonists this wouldn't be needed
+			// this touches all pawns in the player faction, which can be put into a very wierd state by other mods
+			if (comp == null)
+			{
+				continue;
+			}
+
 			foreach (var thing in pawn.inventory.innerContainer)
 			{
 				if (!comp.Contains(thing))
@@ -53,6 +60,10 @@ public static class Bill_Count
 				continue;
 			}
 			var comp = pawn.HauledToInventoryComp();
+			if (comp == null)
+			{
+				continue;
+			}
 			foreach (var thing in pawn.inventory.innerContainer)
 			{
 				if (comp.Contains(thing))
