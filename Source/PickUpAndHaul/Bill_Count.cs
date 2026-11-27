@@ -13,7 +13,7 @@ public static class Bill_Count
 		var thingDef = worker.recipe.products[0].thingDef;
 		foreach (var pawn in bill.Map.mapPawns.SpawnedPawnsInFaction(Faction.OfPlayer))
 		{
-			if (onlyMechs && !pawn.IsColonyMech)
+			if (onlyMechs && !pawn.IsColonyMech || pawn.inventory == null)
 			{
 				continue;
 			}
@@ -40,6 +40,10 @@ public static class Bill_Count
 		var count = 0;
 		foreach (var pawn in bill.Map.mapPawns.SpawnedPawnsInFaction(Faction.OfPlayer))
 		{
+			if (pawn.inventory == null)
+			{
+				continue;
+			}
 			var comp = pawn.HauledToInventoryComp();
 			foreach (var thing in pawn.inventory.innerContainer)
 			{
