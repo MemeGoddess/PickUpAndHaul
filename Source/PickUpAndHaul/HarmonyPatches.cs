@@ -83,6 +83,9 @@ static class HarmonyPatches
 		harmony.Patch(original: AccessTools.Method(typeof(JobGiver_DropUnusedInventory), nameof(JobGiver_DropUnusedInventory.Drop)),
 			prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(Drop_Prefix)));
 
+		harmony.Patch(original: AccessTools.Method(typeof(JobGiver_GetRest), nameof(JobGiver_GetRest.TryGiveJob)),
+			postfix: new HarmonyMethod(typeof(PawnUnloadChecker), nameof(PawnUnloadChecker.BeforeSleepPostfix)));
+
 		// colonists idle
 		harmony.Patch(original: AccessTools.Method(typeof(JobGiver_Idle), nameof(JobGiver_Idle.TryGiveJob)),
 			postfix: new HarmonyMethod(typeof(HarmonyPatches), nameof(Idle_Postfix)));

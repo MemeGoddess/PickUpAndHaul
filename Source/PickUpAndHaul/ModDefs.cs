@@ -10,6 +10,7 @@ public static class JobDefOfs
 	static JobDefOfs() => DefOfHelper.EnsureInitializedInCtor(typeof(JobDefOfs));
 
 	public static JobDef UnloadYourHauledInventory;
+	public static JobDef PUAH_UnloadBeforeSleep;
 	public static JobDef HaulToInventory;
 }
 
