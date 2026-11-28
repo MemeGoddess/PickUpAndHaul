@@ -560,9 +560,9 @@ static class HarmonyPatches
 		// inject;
 		//	num2 += AddCountForPending(bill.includeEquipped, worker, bill)
 		matcher.Insert(
-			new CodeInstruction(OpCodes.Dup),
-			new CodeInstruction(OpCodes.Ldarg_0),
-			new CodeInstruction(OpCodes.Ldarg_1),
+			new CodeInstruction(OpCodes.Dup),     // bill.includeEquipped
+			new CodeInstruction(OpCodes.Ldarg_0), // worker / this
+			new CodeInstruction(OpCodes.Ldarg_1), // bill
 			new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Bill_Count), nameof(Bill_Count.AddCountForPending))),
 			new CodeInstruction(OpCodes.Ldloc_2),
 			new CodeInstruction(OpCodes.Add),
@@ -598,8 +598,8 @@ static class HarmonyPatches
 		// inject;
 		//	num = num + AddCountForPendingByThingDefs(bill, childThingDefs)
 		matcher.Insert([
-			new CodeInstruction(OpCodes.Ldarg_0),
-			new CodeInstruction(OpCodes.Ldloc_1),
+			new CodeInstruction(OpCodes.Ldarg_1), // bill
+			new CodeInstruction(OpCodes.Ldloc_1), // childThingDefs
 			new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Bill_Count), nameof(Bill_Count.AddCountForPendingByThingDefs))),
 			new CodeInstruction(OpCodes.Ldloc_0),
 			new CodeInstruction(OpCodes.Add),
