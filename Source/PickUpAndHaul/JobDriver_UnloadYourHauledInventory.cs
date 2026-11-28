@@ -132,32 +132,54 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 					return;
 				}
 
-				if (destination != null || cell != IntVec3.Invalid)
+				var doReservation = true;
+				// if/else if order matters, as the cell has priority over using a thing as destination!
+				if (cell != IntVec3.Invalid)
 				{
-					job.SetTarget(TargetIndex.A, unloadableThing.Thing);
-					if (cell == IntVec3.Invalid)
+					job.SetTarget(TargetIndex.B, cell);
+				}
+				else if (destination is Thing destThing)
+				{
+					job.SetTarget(TargetIndex.B, destThing);
+					if (destThing is IHaulEnroute container)
 					{
-						job.SetTarget(TargetIndex.B, destination as Thing);
-					}
-					else
-					{
-						job.SetTarget(TargetIndex.B, cell);
-					}
+						doReservation = false;
+						// copied from JobDriver_HaulToContainer::UpdateTracker
+						// however GetSpaceRemainingWithEnroute() mixes stack counts and stack sizes!
+						// so it can't be used to vary the delivery size
+						var thingDef = unloadableThing.Thing.def;
+						var spaceRemaining = container.GetSpaceRemainingWithEnroute(thingDef);
+						if (job.playerForced && spaceRemaining == 0)
+						{
+							container.Map.enrouteManager.InterruptEnroutePawns(container, pawn);
+							spaceRemaining = container.GetSpaceRemainingWithEnroute(thingDef);
+						}
 
-					Log.Message($"{pawn} found destination {job.targetB} for thing {unloadableThing.Thing}:{unloadableThing.count}");
-					if (!pawn.Map.reservationManager.Reserve(pawn, job, job.targetB, errorOnFailed: false))
-					{
-						Log.Message(
-							$"{pawn} failed reserving destination {job.targetB}, dropping {unloadableThing.Thing}:{unloadableThing.count}");
-						pawn.TryDropThing(unloadableThing.Thing, unloadableThing.count);
-						return;
+						var num = Mathf.Min(unloadableThing.count, spaceRemaining);
+						if (num > 0)
+						{
+							container.Map.enrouteManager.AddEnroute(container, pawn, thingDef, num);
+						}
 					}
-					job.count = unloadableThing.count;
+				}
+				else
+				{
+					Log.Message($"{pawn} unable to find hauling destination, dropping {unloadableThing.Thing}:{unloadableThing.count}");
+					pawn.TryDropThing(unloadableThing.Thing, unloadableThing.count);
 					return;
 				}
 
-				Log.Message($"{pawn} unable to find hauling destination, dropping {unloadableThing.Thing}:{unloadableThing.count}");
-				pawn.TryDropThing(unloadableThing.Thing, unloadableThing.count);
+				if (doReservation && !pawn.Map.reservationManager.Reserve(pawn, job, job.targetB, errorOnFailed: false))
+				{
+					Log.Message(
+						$"{pawn} failed reserving destination {job.targetB}, dropping {unloadableThing.Thing}:{unloadableThing.count}");
+					pawn.TryDropThing(unloadableThing.Thing, unloadableThing.count);
+					return;
+				}
+
+				Log.Message($"{pawn} found destination {job.targetB} for thing {unloadableThing.Thing}:{unloadableThing.count}");
+				job.SetTarget(TargetIndex.A, unloadableThing.Thing);
+				job.count = unloadableThing.count;
 			}
 		};
 	}
@@ -182,31 +204,14 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 		foreach (var thing in pendingDrops.OrderBy(t => t.def.FirstThingCategory?.index ?? -1).ThenBy(x => x.def.defName))
 		{
 			Thing candidate;
-			//find the overlap.
 			if (inventory.Contains(thing))
 			{
 				candidate = thing;
 			}
 			else
 			{
-				//merged partially picked up stacks get a different thingID in inventory
-				//we have no method of grabbing the newly generated thingID. This is the solution to that.
 				hauledToInventoryComp.UnregisterHauledItem(thing);
-				candidate = null;
-				var stragglerDef = thing.def;
-				foreach (var dirtyStraggler in innerPawnContainer)
-				{
-					if (dirtyStraggler.def == stragglerDef)
-					{
-						candidate = dirtyStraggler;
-						break;
-					}
-				}
-
-				if (candidate == null)
-				{
-					continue;
-				}
+				continue;
 			}
 
 			var isInvalid = true;

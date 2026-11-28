@@ -3,6 +3,19 @@ using System.Linq;
 namespace PickUpAndHaul;
 public partial class WorkGiver_HaulToInventory
 {
+	private static bool _toLogObsoleteUsage = true;
+
+	[Obsolete]
+	public static bool AllocateThingAtCell(Dictionary<StoreTarget, CellAllocation> storeCellCapacity, Pawn pawn, Thing nextThing, Job job)
+	{
+		if (_toLogObsoleteUsage)
+		{
+			_toLogObsoleteUsage = false;
+			Verse.Log.Error($"{nameof(WorkGiver_HaulToInventory)}.{nameof(AllocateThingAtCell)} is Obsolete and has been replaced");
+		}
+		return false;
+	}
+
 	[Obsolete]
 	public static Thing FindClosestThing(List<Thing> searchSet, IntVec3 center, out int index)
 	{
