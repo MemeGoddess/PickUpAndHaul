@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Diagnostics.CodeAnalysis;
 using Verse.AI.Group;
 
@@ -6,6 +7,26 @@ public static class PawnUnloadChecker
 {
 	public static float EmptyEncumbrancePercent = 0.9f;
 	public static float EmptyTicksForRotables = 3000;
+
+	public static void BeforeSleepPostfix(Pawn pawn, ref Job __result)
+	{
+		// Player orders and medical rest use other job givers. Exhausted pawns should go straight to sleep.
+		if (__result?.def != JobDefOf.LayDown || __result.playerForced || pawn.Downed || pawn.InMentalState
+		    || pawn.needs.rest.CurCategory == RestCategory.Exhausted || HealthAIUtility.ShouldSeekMedicalRestUrgent(pawn)
+		    || !pawn.isAutoUnloadInventoryAllowed())
+		{
+			return;
+		}
+
+		var tracked = pawn.HauledToInventoryComp()?.GetHashSet();
+		if (tracked == null || !tracked.Any(pawn.inventory.innerContainer.Contains))
+		{
+			return;
+		}
+
+		// Let the think tree choose again after unloading so urgent needs can take priority.
+		__result = JobMaker.MakeJob(JobDefOfs.PUAH_UnloadBeforeSleep, pawn);
+	}
 
 	extension(Pawn pawn)
 	{

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+  <JobDef>
+    <defName>PUAH_UnloadBeforeSleep</defName>
+    <driverClass>PickUpAndHaul.JobDriver_UnloadYourHauledInventory</driverClass>
+    <reportString>unloading inventory.</reportString>
+    <casualInterruptible>true</casualInterruptible>
+    <suspendable>false</suspendable>
+  </JobDef>
+</Defs>

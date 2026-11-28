@@ -121,11 +121,13 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 				job.SetTarget(TargetIndex.A, null);
 				job.count = 0;
 
-				var unloadableThing = FirstUnloadableThingWithDestination(pawn, hauledToInventoryComp, out var cell, out var destination);
+				var trackedItemsOnly = job.def == JobDefOfs.PUAH_UnloadBeforeSleep;
+				var unloadableThing = FirstUnloadableThingWithDestination(pawn, hauledToInventoryComp,
+					trackedItemsOnly, out var cell, out var destination);
 
 				if (unloadableThing.count == 0)
 				{
-					if (hauledToInventoryComp.IsEmpty())
+					if (trackedItemsOnly || hauledToInventoryComp.IsEmpty())
 					{
 						EndJobWith(JobCondition.Succeeded);
 					}
@@ -162,7 +164,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 		};
 	}
 
-	private static ThingCount FirstUnloadableThingWithDestination(Pawn pawn, CompHauledToInventory hauledToInventoryComp, out IntVec3 foundCell, out IHaulDestination foundDestination)
+	private static ThingCount FirstUnloadableThingWithDestination(Pawn pawn, CompHauledToInventory hauledToInventoryComp, bool trackedItemsOnly, out IntVec3 foundCell, out IHaulDestination foundDestination)
 	{
 		foundCell = IntVec3.Invalid;
 		foundDestination = null;
@@ -189,6 +191,12 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 			}
 			else
 			{
+				// Bedtime unloading must not substitute a personal item for a stale haul entry.
+				if (trackedItemsOnly)
+				{
+					continue;
+				}
+
 				//merged partially picked up stacks get a different thingID in inventory
 				//we have no method of grabbing the newly generated thingID. This is the solution to that.
 				hauledToInventoryComp.UnregisterHauledItem(thing);
@@ -267,7 +275,10 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 			}
 
 			// Nothing in the hauled to inventory list matches the pawn's inventory, just clear it as it is obviously badly out of sync
-			hauledToInventoryComp.Clear();
+			if (!trackedItemsOnly)
+			{
+				hauledToInventoryComp.Clear();
+			}
 			return default;
 		}
 
