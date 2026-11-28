@@ -42,7 +42,13 @@ public static class InventoryUtilities
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public bool TryAddItemToInventoryForStashing(Thing thing)
 		{
-			return pawn.TryAddItemToInventory(thing, thing.stackCount, out _);
+			if (!pawn.TryAddItemToInventory(thing, thing.stackCount, out _))
+			{
+				return false;
+			}
+
+			pawn.CheckIfPawnShouldUnloadInventory(false);
+			return true;
 		}
 
 		public bool TryAddItemToInventory(Thing thing, int pickupCount, out int remainingToPickup, bool tooHeavyMsg = true)
