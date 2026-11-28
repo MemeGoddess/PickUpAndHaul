@@ -283,43 +283,20 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 	{
 		var best = -1;
 		var bestDistance = int.MaxValue;
-		var stackLimit = thingToPlace.def.stackLimit;
 		var map = pawn.Map;
-		var reservations = map.reservationManager;
 		var from = pawn.Position;
 		for (var i = 0; i < destinations.Count; i++)
 		{
 			var cell = destinations[i];
 			var distance = (cell - from).LengthHorizontalSquared;
-			if (distance < bestDistance && reservations.CanReserve(pawn, cell, 1, thingToPlace.stackCount))
+			// Use RimWorld's storage checks for both empty cells and cells with room to stack.
+			if (distance >= bestDistance || !StoreUtility.IsGoodStoreCell(cell, map, thingToPlace, pawn, pawn.Faction))
 			{
-				var cellThings = cell.GetThingList(map);
-
-				if (stackLimit > 1)
-				{
-					var canNotMerge = true;
-					foreach (var cellThing in cellThings)
-					{
-						if (cellThing.CanStackWith(thingToPlace) && thingToPlace.stackCount + cellThing.stackCount < stackLimit)
-						{
-							canNotMerge = false;
-							break;
-						}
-					}
-
-					if (canNotMerge)
-					{
-						continue;
-					}
-				}
-				else if (cellThings.Count > 0)
-				{
-					continue;
-				}
-
-				bestDistance = distance;
-				best = i;
+				continue;
 			}
+
+			bestDistance = distance;
+			best = i;
 		}
 
 		return best;
